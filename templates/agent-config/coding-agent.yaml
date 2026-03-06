@@ -1,0 +1,19 @@
+name: "coding-agent"
+description: "A senior software engineering agent focused on clean, efficient code."
+version: "1.0.0"
+model:
+  provider: "anthropic"
+  name: "claude-3-5-sonnet-latest"
+  temperature: 0.2
+system_prompt_template: |
+  {{prompts/system/coding-assistant.md}}
+  
+  {{prompts/roles/senior-software-engineer.md}}
+tools:
+  - name: "execute_code"
+    description: "Executes Python code in an isolated environment"
+  - name: "read_file"
+    description: "Reads the content of a specified file"
+memory:
+  type: "conversation"
+  max_tokens: 128000

@@ -1,0 +1,15 @@
+name: "reviewer-agent"
+description: "An agent that reviews code/documents and acts as an objective evaluator."
+version: "1.0.0"
+model:
+  provider: "anthropic"
+  name: "claude-3-5-sonnet-latest"
+  temperature: 0.1
+system_prompt_template: |
+  {{prompts/tasks/debug/architecture-review.md}}
+  
+  {{prompts/meta/risk-and-safety-review.md}}
+tools: []
+memory:
+  type: "conversation"
+  max_tokens: 128000

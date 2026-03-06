@@ -1,0 +1,27 @@
+name: "trading-strategy-pipeline"
+description: "Workflow to build and optimize quantitative trading strategies."
+version: "1.0.0"
+steps:
+  - id: "ideation"
+    name: "Strategy Ideation"
+    prompt_template: "prompts/workflows/trading-strategy/01-ideation.md"
+    inputs:
+      - "{{TICKER}}"
+      - "{{MARKET_CONDITIONS}}"
+    outputs:
+      - "{{STRATEGY_IDEA}}"
+  - id: "rules_formalization"
+    name: "Formalize Rules"
+    prompt_template: "prompts/workflows/trading-strategy/02-rules-formalization.md"
+    inputs:
+      - "{{STRATEGY_IDEA}}"
+    outputs:
+      - "{{TRADING_RULES}}"
+  - id: "optimization"
+    name: "Parameter Optimization"
+    prompt_template: "prompts/workflows/trading-strategy/04-optimization.md"
+    inputs:
+      - "{{TRADING_RULES}}"
+      - "{{TIMEFRAME}}"
+    outputs:
+      - "{{OPTIMIZED_BASH_PARAMETERS}}"

@@ -1,0 +1,20 @@
+name: "bug-fixing-pipeline"
+description: "A secure process for identifying, fixing, and testing a bug."
+version: "1.0.0"
+steps:
+  - id: "diagnose"
+    name: "Diagnose Bug"
+    prompt_template: "prompts/workflows/bug-fixing/02-diagnose.md"
+    inputs:
+      - "{{ERROR_LOG}}"
+      - "{{CONTEXT}}"
+    outputs:
+      - "{{ROOT_CAUSE_ANALYSIS}}"
+  - id: "fix"
+    name: "Implement Fix"
+    prompt_template: "prompts/workflows/bug-fixing/03-fix-and-regressions.md"
+    inputs:
+      - "{{ROOT_CAUSE_ANALYSIS}}"
+      - "{{CODE}}"
+    outputs:
+      - "{{FIXED_CODE}}"

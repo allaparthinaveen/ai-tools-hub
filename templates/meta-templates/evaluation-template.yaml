@@ -1,0 +1,12 @@
+version: "1.0.0"
+schema_type: "evaluation_rubric"
+criteria:
+  - name: "hallucination_check"
+    weight: 0.5
+    prompt_ref: "prompts/meta/hallucination-checker.md"
+  - name: "style_compliance"
+    weight: 0.3
+    prompt_ref: "prompts/meta/style-enforcer.md"
+  - name: "format_validation"
+    weight: 0.2
+    prompt_ref: "templates/output-templates/json-response-schema.md"

@@ -1,0 +1,18 @@
+name: "documentation-pipeline"
+description: "Takes raw code and converts it to a structured documentation web page."
+version: "1.0.0"
+steps:
+  - id: "analyze"
+    name: "Analyze Codebase"
+    prompt_template: "prompts/tasks/explain/to-expert.md"
+    inputs:
+      - "{{CODE}}"
+    outputs:
+      - "{{TECHNICAL_SUMMARY}}"
+  - id: "format"
+    name: "Format Markdown"
+    prompt_template: "prompts/tasks/generate/documentation.md"
+    inputs:
+      - "{{TECHNICAL_SUMMARY}}"
+    outputs:
+      - "{{MARKDOWN_FINAL}}"

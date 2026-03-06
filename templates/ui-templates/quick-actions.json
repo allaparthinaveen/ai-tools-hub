@@ -1,0 +1,12 @@
+{
+  "name": "Trading Quick Actions",
+  "prompt_refs": [
+    "prompts/domains/trading/risk-analysis.md"
+  ],
+  "variables": ["{{TICKER}}", "{{TIMEFRAME}}"],
+  "quick_actions": [
+    "Full Risk Assessment",
+    "Backtest Quick Run",
+    "Calculate Sharpe"
+  ]
+}

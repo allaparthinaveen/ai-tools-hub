@@ -1,0 +1,14 @@
+version: "1.0.0"
+schema_type: "metadata"
+fields:
+  author: "{{AUTHOR_NAME}}"
+  created_at: "{{TIMESTAMP}}"
+  tags:
+    - "coding"
+    - "python"
+    - "backend"
+  categories:
+    - "generation"
+  evaluation_criteria:
+    - "Must output runnable python files"
+    - "Must include docstrings"

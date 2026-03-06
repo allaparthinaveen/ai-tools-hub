@@ -1,0 +1,13 @@
+version: "1.0.0"
+schema_type: "changelog"
+format: |
+  ## [{{VERSION_NUMBER}}] - {{DATE}}
+  
+  ### Added
+  - {{NEW_PROMPT_ENTRY}}
+  
+  ### Changed
+  - {{MODIFIED_PROMPT_ENTRY}}
+  
+  ### Deprecated
+  - {{OLD_PROMPT_ENTRY}}

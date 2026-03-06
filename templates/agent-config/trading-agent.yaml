@@ -1,0 +1,17 @@
+name: "trading-agent"
+description: "A quant-focused agent for market analysis and algorithmic strategy."
+version: "1.0.0"
+model:
+  provider: "openai"
+  name: "o1-preview"
+  temperature: 0.0
+system_prompt_template: |
+  {{prompts/system/trading-assistant.md}}
+  
+  {{prompts/domains/trading/risk-analysis.md}}
+tools:
+  - name: "fetch_market_data"
+    description: "Retrieves OHLCV data for a specific ticker"
+memory:
+  type: "conversation"
+  max_tokens: 128000

@@ -1,0 +1,17 @@
+name: "research-agent"
+description: "An agent dedicated to deep-diving into complex topics and citing sources."
+version: "1.0.0"
+model:
+  provider: "openai"
+  name: "gpt-4o"
+  temperature: 0.3
+system_prompt_template: |
+  {{prompts/system/research-assistant.md}}
+  
+  {{prompts/roles/tech-writer.md}}
+tools:
+  - name: "search_web"
+    description: "Searches the internet for highly relevant academic/technical info"
+memory:
+  type: "conversation"
+  max_tokens: 64000

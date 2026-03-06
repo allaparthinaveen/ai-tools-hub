@@ -1,0 +1,12 @@
+version: "1.0.0"
+schema_type: "structured_log"
+format:
+  timestamp: "{{TIMESTAMP}}"
+  agent_name: "{{AGENT_NAME}}"
+  prompt_invoked: "{{PATH_TO_EXISTING_PROMPT}}"
+  inputs_mapped:
+    - key: "{{VARIABLE1}}"
+      value: "..."
+  token_usage:
+    input: 0
+    output: 0

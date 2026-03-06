@@ -1,0 +1,13 @@
+name: "minimal-agent"
+description: "A bare-bones assistant for simple Q&A"
+version: "1.0.0"
+model:
+  provider: "openai"
+  name: "gpt-4o-mini"
+  temperature: 0.1
+system_prompt_template: |
+  {{prompts/system/general.md}}
+tools: []
+memory:
+  type: "conversation"
+  max_tokens: 32000

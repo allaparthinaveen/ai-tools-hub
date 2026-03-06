@@ -1,0 +1,12 @@
+{
+  "name": "Reviewer Sidebar",
+  "prompt_refs": [
+    "prompts/tasks/debug/architecture-review.md"
+  ],
+  "variables": ["{{PR_URL}}"],
+  "quick_actions": [
+    "Security check",
+    "Style check",
+    "Generate PR Summary"
+  ]
+}

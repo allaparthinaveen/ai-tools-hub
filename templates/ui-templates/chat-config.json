@@ -1,0 +1,14 @@
+{
+  "name": "Standard Code Chat",
+  "prompt_refs": [
+    "prompts/system/coding-assistant.md",
+    "prompts/patterns/step-by-step.md"
+  ],
+  "variables": ["{{CODE}}", "{{LANGUAGE}}"],
+  "quick_actions": [
+    "Explain this",
+    "Find bugs",
+    "Optimize performance"
+  ],
+  "theme": "dark"
+}

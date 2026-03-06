@@ -1,0 +1,25 @@
+name: "feature-development-pipeline"
+description: "End-to-end pipeline from feature ideation into generated code."
+version: "1.0.0"
+steps:
+  - id: "requirements"
+    name: "Gather Requirements"
+    prompt_template: "prompts/workflows/feature-development/01-requirements.md"
+    inputs:
+      - "{{RAW_IDEA}}"
+    outputs:
+      - "{{FORMALIZED_REQUIREMENTS}}"
+  - id: "design"
+    name: "Technical Design"
+    prompt_template: "prompts/workflows/feature-development/02-design.md"
+    inputs:
+      - "{{FORMALIZED_REQUIREMENTS}}"
+    outputs:
+      - "{{TECH_SPEC_DOC}}"
+  - id: "implementation"
+    name: "Code Implementation"
+    prompt_template: "prompts/workflows/feature-development/03-implementation.md"
+    inputs:
+      - "{{TECH_SPEC_DOC}}"
+    outputs:
+      - "{{IMPLEMENTATION_FILES}}"

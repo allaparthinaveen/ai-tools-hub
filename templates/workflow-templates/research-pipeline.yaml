@@ -1,0 +1,25 @@
+name: "research-pipeline"
+description: "Iterative workflow for answering complex tech questions."
+version: "1.0.0"
+steps:
+  - id: "scope"
+    name: "Scope Request"
+    prompt_template: "prompts/workflows/research-pipeline/01-scope-question.md"
+    inputs:
+      - "{{USER_QUERY}}"
+    outputs:
+      - "{{SCOPED_QUERY}}"
+  - id: "collect"
+    name: "Collect Information"
+    prompt_template: "prompts/workflows/research-pipeline/02-collect-sources.md"
+    inputs:
+      - "{{SCOPED_QUERY}}"
+    outputs:
+      - "{{SOURCES}}"
+  - id: "synthesize"
+    name: "Synthesize Findings"
+    prompt_template: "prompts/workflows/research-pipeline/03-synthesize.md"
+    inputs:
+      - "{{SOURCES}}"
+    outputs:
+      - "{{FINAL_REPORT}}"
