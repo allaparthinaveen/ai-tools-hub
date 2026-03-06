@@ -116,4 +116,15 @@ You  must output exactly one file and nothing else, no extra explanations outsid
 - Contain all the information in the codebase analysis described above.
 - All diagrams must be in svg format and in single file, titled diagrams.svg or must be in proper mermaid format code blocks (```mermaid).
 - Use clear heirarchy of headers and subheaders to organize the documentation.
+- also create below docs
+- {MODULE_NAME}-context.md (comprehensive context of the module with platform + domain + application existing components)
+- {MODULE_NAME}-components.md (components of the module with component relationships and interactions)
+- {MODULE_NAME}-data.md (data design and security of the module with data relationships and interactions)
+- {MODULE_NAME}-interfaces.md (interfaces and integrations of the module with interfaces and intraction points by pin pointing the codebase line numbers)
+- {MODULE_NAME}-integrations.md (integrations of the module)
+- {MODULE_NAME}-security.md
+- {MODULE_NAME}-performance.md
+- {MODULE_NAME}-monitoring.md ()
+- {MODULE_NAME}-architecture-map.md (platform + domain + application technical architecute with component locations)
+- {MODULE_NAME}-recommendations.md
 
