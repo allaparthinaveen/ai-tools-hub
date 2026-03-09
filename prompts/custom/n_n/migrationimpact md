@@ -1,0 +1,12 @@
+Act as a Senior Solutions Architect and Expert Java/Spring Boot Developer with 15+ years of experience specializing in technology stack upgrades. I am upgrading a production Spring Boot application from **JDK 8 and Spring Boot 2.7** to **JDK 17 and Spring Boot 3.5**.
+
+**Objective:** Perform a comprehensive impact analysis focusing on production deployment risks, runtime issues, migration hurdles, and code-level breaking changes.
+
+**Scope:**
+1.  **JDK 8 to 17:** Analyze the impact of the JVM upgrade (e.g., module system, deprecated features like finalization, reflection access, language changes).
+2.  **Spring Boot 2.7 to 3.5:** Analyze the impact of the major Spring version upgrade (e.g., Jakarta EE 9+ namespace change, Spring Security 6.0, Hibernate 6, Actuator changes, auto-configuration changes).
+3.  **Dependency Analysis:** Identify common third-party dependencies that may break (e.g., Lombok, MapStruct, database drivers, cloud libraries).
+4.  **Configuration Changes:** Identify deprecated/removed properties in `application.yml/properties`.
+
+**Task:**
+Using the context of my codebase (compare the current feature branch against the master branch if possible, otherwise assume typical enterprise patterns), list all possible problems in a step-by-step, detailed manner. Structure your output as a single markdown (.md) file with clear headings and actionable recommendations.
