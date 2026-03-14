@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <title>DevLog · daily work tracker</title>
+  <!-- Tailwind + custom dark class strategy -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide icons (professional outline set) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Dexie.js (database) -->
+  <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
+  <!-- Dexie Export/Import -->
+  <script src="https://unpkg.com/dexie-export-import@latest/dist/dexie-export-import.js"></script>
+  <!-- minimal meta & font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
+  <style>
+    * {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    /* smooth backdrop + glass helpers */
+    .glass-card {
+      @apply bg-white/80 dark:bg-zinc-900/70 backdrop-blur-md border border-white/20 dark:border-zinc-700/50;
+    }
+
+    .glass-panel {
+      @apply bg-white/60 dark:bg-zinc-800/60 backdrop-blur-sm border border-zinc-200/60 dark:border-zinc-700/40;
+    }
+
+    /* micro animation */
+    .hover-lift {
+      transition: transform 0.15s ease, box-shadow 0.2s ease;
+    }
+
+    .hover-lift:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15);
+    }
+
+    /* custom scrollbar (discrete) */
+    .scroll-slim::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .scroll-slim::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .scroll-slim::-webkit-scrollbar-thumb {
+      background: #aaa;
+      border-radius: 8px;
+    }
+
+    .dark .scroll-slim::-webkit-scrollbar-thumb {
+      background: #444;
+    }
+  </style>
+</head>
+
+<body
+  class="bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 antialiased scroll-smooth transition-colors duration-200">
+  <!-- MAIN CONTAINER (flex column, full viewport) -->
+  <div class="flex flex-col min-h-screen">
+
+    <!-- ========== FIXED TOP HEADER (sticky, glass) ========== -->
+    <header
+      class="sticky top-0 z-30 glass-card border-b border-zinc-200/70 dark:border-zinc-800/60 px-4 sm:px-6 py-3 flex items-center justify-between shadow-sm">
+      <!-- left: logo + title -->
+      <div class="flex items-center gap-3">
+        <button id="sidebarToggle"
+          class="lg:hidden p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-800 transition"
+          aria-label="Toggle sidebar">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+            <i data-lucide="clipboard-list" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
+          </div>
+          <span class="font-semibold text-lg tracking-tight">dev<span
+              class="text-emerald-600 dark:text-emerald-400">log</span></span>
+        </div>
+      </div>
+
+      <!-- right: quick actions + theme toggle -->
+      <div class="flex items-center gap-1 sm:gap-3">
+        <!-- New Import/Export Buttons -->
+        <label for="importFile"
+          class="p-2 flex items-center gap-1 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-800 transition cursor-pointer text-zinc-600 dark:text-zinc-300"
+          title="Import worklog.txt">
+          <i data-lucide="folder-open" class="w-5 h-5"></i>
+          <span class="hidden sm:inline text-sm font-medium pr-1">Import</span>
+        </label>
+        <input type="file" id="importFile" accept=".txt,.json" class="hidden">
+
+        <button id="exportBtn"
+          class="p-2 flex items-center gap-1 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-800 transition text-emerald-600 dark:text-emerald-400"
+          title="Export to worklog.txt">
+          <i data-lucide="save" class="w-5 h-5"></i>
+          <span class="hidden sm:inline text-sm font-medium pr-1">Export</span>
+        </button>
+
+        <div class="w-px h-5 bg-zinc-300 dark:bg-zinc-700 mx-1 hidden sm:block"></div>
+
+        <button class="p-2 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-800 hidden sm:block relative"
+          aria-label="Notifications">
+          <i data-lucide="bell" class="w-5 h-5"></i>
+          <span
+            class="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white dark:ring-zinc-950"></span>
+        </button>
+        <button class="p-2 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-800 hidden sm:block"
+          aria-label="Quick actions">
+          <i data-lucide="zap" class="w-5 h-5"></i>
+        </button>
+        <!-- theme toggle (sun/moon) with localStorage persistence -->
+        <button id="themeToggle" class="p-2 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-800 transition"
+          aria-label="Toggle theme">
+          <i id="themeIcon" data-lucide="moon" class="w-5 h-5"></i> <!-- will swap via js -->
+        </button>
+        <!-- avatar mock -->
+        <div
+          class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-sky-400 flex items-center justify-center text-white font-medium text-sm">
+          JD</div>
+      </div>
+    </header>
+
+    <!-- ========== BODY: SIDEBAR + MAIN (flex row) ========== -->
+    <div class="flex flex-1 overflow-hidden relative">
+
+      <!-- SIDEBAR (collapsible, glass) — hidden on mobile by default, toggled with js -->
+      <aside id="sidebar"
+        class="fixed inset-y-0 left-0 z-20 w-64 lg:w-56 transform -translate-x-full lg:translate-x-0 transition-transform duration-200 ease-in-out lg:relative lg:flex flex-col glass-panel border-r border-zinc-200 dark:border-zinc-800 p-4 pt-6 mt-0 lg:mt-0 h-full lg:h-auto overflow-y-auto scroll-slim"
+        aria-label="Main navigation">
+        <nav class="space-y-1.5">
+          <a href="#"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-300 transition group">
+            <i data-lucide="layout-dashboard" class="w-5 h-5"></i> <span class="text-sm font-medium">Workbench</span>
+          </a>
+          <a href="#"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-emerald-100/60 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-l-2 border-emerald-500">
+            <i data-lucide="list-checks" class="w-5 h-5"></i> <span class="text-sm font-medium">Daily worklog</span>
+          </a>
+          <a href="#"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/70 transition">
+            <i data-lucide="git-branch" class="w-5 h-5"></i> <span class="text-sm font-medium">Branches</span>
+          </a>
+          <a href="#"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/70 transition">
+            <i data-lucide="shield-check" class="w-5 h-5"></i> <span class="text-sm font-medium">Pentest</span>
+          </a>
+          <a href="#"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/70 transition">
+            <i data-lucide="test-tube" class="w-5 h-5"></i> <span class="text-sm font-medium">Test reports</span>
+          </a>
+        </nav>
+        <div class="mt-8 pt-4 border-t border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500">
+          <p class="px-3">v1.0 · file: worklog.txt</p>
+        </div>
+      </aside>
+
+      <!-- ========== MAIN CONTENT (scrollable) ========== -->
+      <main class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 scroll-slim" id="mainContent">
+
+        <!-- SECTION 1 – INPUT AREA (search + add + refresh) -->
+        <div
+          class="glass-panel rounded-2xl p-5 flex flex-col sm:flex-row gap-4 items-center justify-between border border-zinc-200/70 dark:border-zinc-800/60">
+          <div class="flex flex-1 w-full sm:w-auto items-center gap-2">
+            <div class="relative flex-1">
+              <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400"></i>
+              <input type="text" id="searchInput" placeholder="Search tasks, Jira, branch, CR..."
+                class="w-full bg-white dark:bg-zinc-900/70 border border-zinc-300 dark:border-zinc-700 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/50 transition">
+            </div>
+            <button id="searchBtn"
+              class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium flex items-center gap-2 transition shadow-sm">
+              <i data-lucide="filter" class="w-4 h-4"></i> <span class="hidden sm:inline">Search</span>
+            </button>
+          </div>
+          <div class="flex items-center gap-2 self-end sm:self-auto">
+            <button id="addTaskBtn"
+              class="p-2.5 bg-zinc-200/70 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 rounded-xl transition flex items-center gap-1"
+              title="Add task">
+              <i data-lucide="plus" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i> <span
+                class="hidden sm:inline text-sm font-medium">Add</span>
+            </button>
+            <button id="refreshBtn"
+              class="p-2.5 bg-zinc-200/70 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 rounded-xl transition"
+              title="Refresh Tasks">
+              <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- SECTION 2 – TASK LIST (output) -->
+        <div class="space-y-4" id="taskContainer">
+          <!-- dynamic cards will be injected here via mock + later backend simulation -->
+          <!-- but we include static mock structure that matches the data model -->
+        </div>
+        <!-- small mock "live updated" indicator (footer of section) -->
+        <div class="text-xs text-zinc-500 flex items-center gap-2 pt-1">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> <span id="syncText">DB
+            synced ✓</span>
+          · <span id="taskCountText">0 tasks</span>
+        </div>
+      </main>
+    </div>
+
+    <!-- ========== FIXED BOTTOM FOOTER ========== -->
+    <footer
+      class="glass-panel border-t border-zinc-200/70 dark:border-zinc-800/60 px-5 py-2 text-xs text-zinc-500 flex items-center justify-between">
+      <span>© devlog — local work tracker (Dexie DB)</span>
+      <span class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-emerald-400" id="footerLed"></span> <span id="footerStatus"
+          class="hidden sm:inline">Changes saved locally</span>
+        <span id="footerTime">| initialized</span>
+      </span>
+    </footer>
+  </div>
+
+  <!-- ========== MODAL DIALOG (ADD/EDIT) – hidden by default ========== -->
+  <dialog id="taskModal"
+    class="w-full max-w-3xl rounded-2xl bg-white dark:bg-zinc-900 backdrop:bg-black/50 backdrop:backdrop-blur-sm p-0 border border-zinc-200 dark:border-zinc-800 shadow-2xl open:animate-in fade-in duration-200">
+    <!-- modal content (scrollable) — will be populated by js with fields from prompt -->
+    <div class="p-6 max-h-[80vh] overflow-y-auto scroll-slim">
+      <h3 id="modalTitle" class="text-xl font-semibold flex items-center gap-2 mb-5"><i data-lucide="file-edit"
+          class="w-5 h-5 text-emerald-500"></i> Add / edit task</h3>
+      <form id="taskForm" class="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
+        <!-- basic required -->
+        <div class="col-span-1"><label class="block font-medium mb-1">Task name *</label><input type="text"
+            id="taskName" required
+            class="w-full border rounded-lg p-2.5 bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700">
+        </div>
+        <div class="col-span-1"><label class="block font-medium mb-1">Date *</label><input type="date" id="taskDate"
+            required
+            class="w-full border rounded-lg p-2.5 bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700">
+        </div>
+        <div><label class="block font-medium mb-1">Type</label><select id="taskType"
+            class="w-full border rounded-lg p-2.5 bg-zinc-50 dark:bg-zinc-800">
+            <option>feature</option>
+            <option>bugfix</option>
+            <option>refactor</option>
+            <option>spike</option>
+            <option>support</option>
+          </select></div>
+        <div><label class="block font-medium mb-1">Tags (comma)</label><input type="text" id="tags"
+            placeholder="payments, ui" class="w-full border rounded-lg p-2.5"></div>
+        <div class="md:col-span-2"><label class="block font-medium mb-1">Jira refs (IDs, titles)</label><input
+            type="text" id="jiraRefs" placeholder="JIRA-123: implement X, JIRA-456"
+            class="w-full border rounded-lg p-2.5"></div>
+        <div class="md:col-span-2"><label class="block font-medium mb-1">Description</label><textarea id="description"
+            rows="2" class="w-full border rounded-lg p-2.5"></textarea></div>
+        <div class="md:col-span-2"><label class="block font-medium mb-1">Implementation steps</label><textarea
+            id="implSteps" rows="2" placeholder="step1... step2..." class="w-full border rounded-lg p-2.5"></textarea>
+        </div>
+        <div><label class="block font-medium mb-1">Repo name</label><input type="text" id="repo"
+            class="w-full border rounded-lg p-2.5"></div>
+        <div><label class="block font-medium mb-1">Branch</label><input type="text" id="branch"
+            class="w-full border rounded-lg p-2.5"></div>
+        <div><label class="block font-medium mb-1">Commits</label><input type="text" id="commits"
+            placeholder="abc123, def456" class="w-full border rounded-lg p-2.5"></div>
+        <div><label class="block font-medium mb-1">Release ticket</label><input type="text" id="releaseTicket"
+            class="w-full border rounded-lg p-2.5"></div>
+        <div class="md:col-span-2"><label class="block font-medium mb-1">CR ID / requester</label><input type="text"
+            id="crId" placeholder="CR-111 / Name" class="w-full border rounded-lg p-2.5"></div>
+        <div class="md:col-span-2"><label class="block font-medium mb-1">Pentest summary</label><input type="text"
+            id="pentest" placeholder="SEC-222, approved" class="w-full border rounded-lg p-2.5"></div>
+        <div><label class="block font-medium mb-1">Unit test summary</label><input type="text" id="unitTests"
+            class="w-full border rounded-lg p-2.5"></div>
+        <div><label class="block font-medium mb-1">Status</label><select id="status"
+            class="w-full border rounded-lg p-2.5">
+            <option>planned</option>
+            <option>in-progress</option>
+            <option>completed</option>
+            <option>deployed</option>
+          </select></div>
+        <div class="md:col-span-2"><label class="block font-medium mb-1">Notes</label><textarea id="notes" rows="2"
+            class="w-full border rounded-lg p-2.5"></textarea></div>
+        <input type="hidden" id="taskId" value="">
+      </form>
+    </div>
+    <div
+      class="flex justify-end gap-3 p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
+      <button id="closeModalBtn"
+        class="px-5 py-2 rounded-xl border hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">Cancel</button>
+      <button id="saveTaskBtn"
+        class="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center gap-2 transition"><i
+          data-lucide="save" class="w-4 h-4"></i> Save task</button>
+    </div>
+  </dialog>
+
+  <!-- ========== VANILLA JS (all logic: theme, sidebar, modal, mock data, fake live) ========== -->
+  <script>
+    (function () {
+      // ----- THEME & LOCALSTORAGE -----
+      const htmlEl = document.documentElement;
+      const themeToggle = document.getElementById('themeToggle');
+      const themeIcon = document.getElementById('themeIcon');
+      function setTheme(theme) {
+        if (theme === 'dark') { htmlEl.classList.add('dark'); localStorage.setItem('theme', 'dark'); themeIcon.setAttribute('data-lucide', 'sun'); }
+        else { htmlEl.classList.remove('dark'); localStorage.setItem('theme', 'light'); themeIcon.setAttribute('data-lucide', 'moon'); }
+        lucide.createIcons(); // re-render icons after class change
+      }
+      const storedTheme = localStorage.getItem('theme');
+      if (storedTheme === 'light') setTheme('light'); else setTheme('dark'); // default dark
+      themeToggle.addEventListener('click', () => {
+        const isDark = htmlEl.classList.contains('dark');
+        setTheme(isDark ? 'light' : 'dark');
+      });
+
+      // ----- SIDEBAR TOGGLE (mobile) -----
+      const sidebar = document.getElementById('sidebar');
+      const sidebarToggle = document.getElementById('sidebarToggle');
+      if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', () => {
+          sidebar.classList.toggle('-translate-x-full');
+        });
+      }
+
+      // ----- MODAL ELEMENTS -----
+      const modal = document.getElementById('taskModal');
+      const addBtn = document.getElementById('addTaskBtn');
+      const closeBtn = document.getElementById('closeModalBtn');
+      const saveBtn = document.getElementById('saveTaskBtn');
+      const modalTitle = document.getElementById('modalTitle');
+      // form fields refs (for mock fill)
+      const taskIdField = document.getElementById('taskId');
+      const taskName = document.getElementById('taskName');
+      const taskDate = document.getElementById('taskDate');
+      const taskType = document.getElementById('taskType');
+      const tags = document.getElementById('tags');
+      const jiraRefs = document.getElementById('jiraRefs');
+      const description = document.getElementById('description');
+      const implSteps = document.getElementById('implSteps');
+      const repo = document.getElementById('repo');
+      const branch = document.getElementById('branch');
+      const commits = document.getElementById('commits');
+      const releaseTicket = document.getElementById('releaseTicket');
+      const crId = document.getElementById('crId');
+      const pentest = document.getElementById('pentest');
+      const unitTests = document.getElementById('unitTests');
+      const status = document.getElementById('status');
+      const notes = document.getElementById('notes');
+
+      // reset modal to empty (add mode)
+      function resetModalForAdd() {
+        modalTitle.innerText = 'Add new task';
+        taskIdField.value = '';
+        taskName.value = '';
+        taskDate.value = new Date().toISOString().slice(0, 10);
+        taskType.value = 'feature';
+        tags.value = '';
+        jiraRefs.value = '';
+        description.value = '';
+        implSteps.value = '';
+        repo.value = '';
+        branch.value = '';
+        commits.value = '';
+        releaseTicket.value = '';
+        crId.value = '';
+        pentest.value = '';
+        unitTests.value = '';
+        status.value = 'planned';
+        notes.value = '';
+      }
+
+      addBtn.addEventListener('click', () => {
+        resetModalForAdd();
+        modal.showModal();
+      });
+
+      closeBtn.addEventListener('click', () => modal.close());
+
+      // Save handling
+      saveBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        // validation stub
+        if (!taskName.value || !taskDate.value) { alert('Task name and date required'); return; }
+
+        try {
+          const newTask = {
+            id: taskIdField.value || 'task-' + crypto.randomUUID(),
+            date: taskDate.value,
+            taskName: taskName.value,
+            taskType: taskType.value,
+            tags: tags.value.split(',').map(t => t.trim()).filter(Boolean),
+            jiraRefs: jiraRefs.value,
+            description: description.value,
+            implSteps: implSteps.value,
+            repo: repo.value,
+            branch: branch.value,
+            commits: commits.value,
+            releaseTicket: releaseTicket.value,
+            crId: crId.value,
+            pentest: pentest.value,
+            unitTests: unitTests.value,
+            status: status.value,
+            notes: notes.value
+          };
+
+          const preparedData = prepareTaskForDB(newTask);
+
+          if (taskIdField.value) {
+            // Edit
+            await db.tasks.put(preparedData);
+          } else {
+            // Add
+            await db.tasks.add(preparedData);
+          }
+
+          await renderTasks();
+          modal.close();
+          updateFooterTime('saved locally');
+        } catch (error) {
+          console.error('Error saving task:', error);
+          alert('Failed to save task: ' + error.message);
+        }
+      });
+
+      // cancel on backdrop click
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.close();
+      });
+
+      // ----- DEXIE INITIALIZATION -----
+      const db = new Dexie('DevWorkLog');
+      db.version(1).stores({
+        tasks: 'id, date, taskType, status, *tags, *jiraIds, *branches'
+      });
+
+      // Helper to extract IDs for indexing (e.g. "JIRA-123" -> array)
+      function extractJiraIds(refsString) {
+        if (!refsString) return [];
+        // simple regex find terms with letters-numbers
+        const matches = refsString.match(/[A-Z]+\-\d+/gi);
+        return matches ? matches.map(m => m.toUpperCase()) : [];
+      }
+
+      function prepareTaskForDB(task) {
+        const jiraIds = extractJiraIds(task.jiraRefs);
+        const branches = task.branch ? [task.branch] : [];
+        return {
+          ...task,
+          jiraIds,
+          branches
+        };
+      }
+
+      const seedMockTasks = [
+        { id: 'task-1', date: '2026-03-14', taskName: 'PCI DSS compliance – logging', taskType: 'feature', tags: ['security', 'pci'], jiraRefs: 'JIRA-412: audit trail, JIRA-415', description: 'Add structured logging for payments', implSteps: '1. design schema; 2. impl middleware', repo: 'payment-gateway', branch: 'feature/pci-logs', commits: 'a1b2c3,d4e5f6', releaseTicket: 'REL-89', crId: 'CR-99 / J. Doe', pentest: 'SEC-202: approved', unitTests: '85% coverage, new testPaymentLog', status: 'deployed', notes: 'monitor first week' },
+        { id: 'task-2', date: '2026-03-13', taskName: 'Dashboard slow load times', taskType: 'bugfix', tags: ['ui', 'perf'], jiraRefs: 'JIRA-420', description: 'Fix N+1 query issue loading workbench metrics', implSteps: 'Add redis cache layer to index.js', repo: 'ui-core', branch: 'bugfix/metrics-n1', commits: 'x9y8z7', releaseTicket: 'REL-88', crId: 'CR-96', pentest: '', unitTests: 'Updated metrics snapshot tests', status: 'completed', notes: 'verify in prod logs' },
+        { id: 'task-3', date: '2026-03-10', taskName: 'Deprecate v1 Webhooks API', taskType: 'refactor', tags: ['api', 'legacy'], jiraRefs: 'JIRA-399', description: 'Remove routing for /api/v1/hook, bump to v2 completely', implSteps: '1. remove router; 2. check metrics; 3. announce', repo: 'hook-service', branch: 'refactor/drop-v1', commits: 'b2b3b4', releaseTicket: 'REL-85', crId: 'CR-92', pentest: 'NA', unitTests: 'tests pass', status: 'planned', notes: 'Check with Team B before deploy' }
+      ];
+
+      async function initializeDB() {
+        try {
+          const count = await db.tasks.count();
+          if (count === 0) {
+            const preparedMocks = seedMockTasks.map(prepareTaskForDB);
+            await db.tasks.bulkAdd(preparedMocks);
+          }
+          await renderTasks();
+        } catch (error) {
+          console.error("DB Initialization error:", error);
+          alert("Could not load local database. " + error.message);
+        }
+      }
+
+      function updateFooterTime(msg) {
+        const footerTime = document.getElementById('footerTime');
+        const d = new Date();
+        if (footerTime) footerTime.textContent = `| ${msg} @ ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
+        blinkLed();
+      }
+
+      function blinkLed() {
+        const footerLed = document.getElementById('footerLed');
+        if (footerLed) {
+          footerLed.classList.remove('bg-emerald-400');
+          footerLed.classList.add('bg-emerald-600');
+          setTimeout(() => {
+            footerLed.classList.add('bg-emerald-400');
+            footerLed.classList.remove('bg-emerald-600');
+          }, 300);
+        }
+      }
+
+      // ----- EXPORT / IMPORT (Dexie functionality) -----
+      document.getElementById('exportBtn').addEventListener('click', async () => {
+        try {
+          updateFooterTime('exporting...');
+          const blob = await db.export({ prettyJson: true });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'worklog.txt'; // Can be .txt but structured as JSON via dexie-export
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+
+          updateFooterTime('exported successfully');
+          alert('Database exported successfully to your downloads folder as worklog.txt');
+        } catch (error) {
+          console.error('Export failed:', error);
+          alert('Export failed: ' + error.message);
+        }
+      });
+
+      document.getElementById('importFile').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+          updateFooterTime('importing...');
+          await db.delete(); // clear current DB entirely
+          await db.open();   // reopen
+          await db.import(file);
+          await renderTasks();
+          updateFooterTime('imported successfully');
+          alert('Database imported successfully.');
+        } catch (error) {
+          console.error('Import failed:', error);
+          alert('Import failed. Please ensure the file is a valid Dexie export. ' + error.message);
+        } finally {
+          e.target.value = ''; // reset file input
+        }
+      });
+
+      const taskContainer = document.getElementById('taskContainer');
+
+      async function renderTasks(filterText = '') {
+        try {
+          let tasks = [];
+
+          if (filterText) {
+            const lowerFilter = filterText.toLowerCase();
+            tasks = await db.tasks.filter(t => {
+              return (
+                (t.taskName || '').toLowerCase().includes(lowerFilter) ||
+                (t.description || '').toLowerCase().includes(lowerFilter) ||
+                (t.jiraRefs || '').toLowerCase().includes(lowerFilter) ||
+                (t.branch || '').toLowerCase().includes(lowerFilter) ||
+                (t.crId || '').toLowerCase().includes(lowerFilter) ||
+                (t.notes || '').toLowerCase().includes(lowerFilter) ||
+                (t.tags || []).some(tag => tag.toLowerCase().includes(lowerFilter))
+              );
+            }).toArray();
+
+            // Re-sort manual filter by date descending
+            tasks.sort((a, b) => b.date.localeCompare(a.date));
+          } else {
+            // Get all and sort by date descending
+            tasks = await db.tasks.orderBy('date').reverse().toArray();
+          }
+
+          document.getElementById('taskCountText').textContent = `${tasks.length} tasks`;
+
+          taskContainer.innerHTML = tasks.map(task => `
+            <div class="glass-panel rounded-xl p-5 border border-zinc-200 dark:border-zinc-800 hover-lift transition-all group">
+              <div class="flex items-start justify-between flex-wrap gap-3">
+                <div class="flex-1 min-w-[200px]">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-xs font-mono bg-zinc-200 dark:bg-zinc-800 px-2 py-1 rounded">${task.date}</span>
+                    <span class="px-2 py-0.5 rounded-full text-xs bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300">${task.taskType}</span>
+                    <span class="text-xs text-zinc-500">${(task.tags || []).join(', ')}</span>
+                  </div>
+                  <h3 class="text-lg font-semibold mt-1 flex items-center gap-2">
+                    ${task.taskName}
+                    <span class="text-xs font-normal bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">${task.status}</span>
+                  </h3>
+                  <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-1 line-clamp-2">${task.description || ''}</p>
+                  <div class="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs">
+                    <span class="flex items-center gap-1"><i data-lucide="jira" class="w-3 h-3"></i> ${(task.jiraRefs || '').slice(0, 20)}</span>
+                    <span class="flex items-center gap-1"><i data-lucide="git-branch" class="w-3 h-3"></i> ${task.branch || 'N/A'}</span>
+                    <span class="flex items-center gap-1"><i data-lucide="tag" class="w-3 h-3"></i> CR: ${task.crId || '—'}</span>
+                  </div>
+                </div>
+                <div class="flex gap-1">
+                  <button class="editTaskBtn p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition" data-id="${task.id}"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                  <button class="deleteTaskBtn p-2 rounded-lg hover:bg-rose-100 dark:hover:bg-rose-950/30 text-rose-500" data-id="${task.id}"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </div>
+              </div>
+              <!-- quick expandable preview -->
+              <details class="mt-3 text-xs border-t border-zinc-200 dark:border-zinc-800 pt-2">
+                <summary class="cursor-pointer text-emerald-600 dark:text-emerald-400 font-medium">show full details (impl, pentest, LV...)</summary>
+                <div class="mt-2 grid grid-cols-2 gap-2 p-2 bg-zinc-100/50 dark:bg-zinc-900/30 rounded">
+                  <div><span class="font-medium">Commits:</span> ${task.commits || 'N/A'}</div>
+                  <div><span class="font-medium">Release:</span> ${task.releaseTicket || 'N/A'}</div>
+                  <div><span class="font-medium">Pentest:</span> ${task.pentest || 'none'}</div>
+                  <div><span class="font-medium">Unit:</span> ${task.unitTests || 'N/A'}</div>
+                  <div class="col-span-2"><span class="font-medium">Notes:</span> ${task.notes || 'none'}</div>
+                </div>
+              </details>
+            </div>
+          `).join('');
+
+          lucide.createIcons();
+
+          // attach edit listeners
+          document.querySelectorAll('.editTaskBtn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+              const id = btn.dataset.id;
+              try {
+                const task = await db.tasks.get(id);
+                if (task) {
+                  modalTitle.innerText = 'Edit task';
+                  taskIdField.value = task.id;
+                  taskName.value = task.taskName;
+                  taskDate.value = task.date;
+                  taskType.value = task.taskType;
+                  tags.value = (task.tags || []).join(', ');
+                  jiraRefs.value = task.jiraRefs || '';
+                  description.value = task.description || '';
+                  implSteps.value = task.implSteps || '';
+                  repo.value = task.repo || '';
+                  branch.value = task.branch || '';
+                  commits.value = task.commits || '';
+                  releaseTicket.value = task.releaseTicket || '';
+                  crId.value = task.crId || '';
+                  pentest.value = task.pentest || '';
+                  unitTests.value = task.unitTests || '';
+                  status.value = task.status || 'planned';
+                  notes.value = task.notes || '';
+                  modal.showModal();
+                }
+              } catch (err) {
+                console.error('Error fetching task for edit:', err);
+              }
+            });
+          });
+
+          // attach delete listeners
+          document.querySelectorAll('.deleteTaskBtn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+              const id = btn.dataset.id;
+              if (confirm('Are you sure you want to delete this task?')) {
+                try {
+                  await db.tasks.delete(id);
+                  await renderTasks();
+                  updateFooterTime('deleted locally');
+                } catch (err) {
+                  console.error('Error deleting task:', err);
+                  alert('Deletion failed');
+                }
+              }
+            });
+          });
+        } catch (error) {
+          console.error('Error rendering tasks:', error);
+        }
+      }
+
+      // Bootstrap app
+      initializeDB();
+
+      // search
+      document.getElementById('searchBtn').addEventListener('click', () => {
+        const txt = document.getElementById('searchInput').value;
+        renderTasks(txt);
+      });
+      document.getElementById('refreshBtn').addEventListener('click', () => {
+        document.getElementById('searchInput').value = '';
+        renderTasks('');
+      });
+
+      // ----- fake live updater (every 15s rotates a random success/loss) -----
+      setInterval(() => {
+        // just toggle a small indicator in footer (playful)
+        const footerSpan = document.querySelector('footer span span');
+        if (footerSpan) {
+          footerSpan.classList.toggle('bg-emerald-400');
+          footerSpan.classList.toggle('bg-rose-400');
+        }
+      }, 10000);
+
+      // set default date in modal if open
+      if (taskDate) taskDate.value = new Date().toISOString().slice(0, 10);
+    })();
+  </script>
+  <!-- ensure icons after any dynamic changes -->
+  <script>lucide.createIcons();</script>
+</body>
+
+</html>
