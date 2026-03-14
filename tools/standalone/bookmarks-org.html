@@ -1,0 +1,1393 @@
+<!-- BOOKMARKS ORGANIZER DASHBOARD v1.0 – Single-file HTML + Tailwind | Light + Dark Themes  -->
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Bookmarks Organizer Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Tailwind config
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              DEFAULT: '#22c55e', // emerald-500
+              soft: '#4ade80',    // emerald-400
+            },
+          },
+        },
+      },
+    };
+
+    // Early theme load (no flicker) [web:47][web:54]
+    (function () {
+      try {
+        const stored = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (stored === 'dark' || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) { }
+    })();
+  </script>
+
+  <style>
+    /* Simple scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.6);
+      border-radius: 999px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen bg-zinc-950 text-zinc-100 antialiased flex flex-col">
+
+  <div class="flex flex-1 min-h-0">
+
+    <!-- Sidebar -->
+    <aside id="sidebar"
+      class="hidden md:flex md:flex-col w-72 border-r border-zinc-800 bg-zinc-950/90 backdrop-blur-lg md:static fixed inset-y-0 left-0 z-30 transform md:translate-x-0 -translate-x-full transition-transform duration-200 ease-out"
+      aria-label="Sidebar navigation">
+      <div class="flex items-center justify-between px-4 py-4 border-b border-zinc-800">
+        <div class="flex items-center gap-2">
+          <div
+            class="h-8 w-8 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center">
+            <span class="text-emerald-400 text-lg font-semibold">B</span>
+          </div>
+          <div>
+            <div class="text-sm font-semibold tracking-tight">Bookmarks Workspace</div>
+            <div class="text-xs text-zinc-400">Create • Organize • Search</div>
+          </div>
+        </div>
+        <button type="button"
+          class="md:hidden inline-flex items-center justify-center rounded-lg p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          aria-label="Close sidebar" onclick="toggleSidebar()">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+        <!-- Smart views -->
+        <section>
+          <div class="px-2 mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Smart Views
+          </div>
+          <nav class="space-y-1" aria-label="Smart views">
+            <button class="sidebar-item active flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-left transition
+                     text-zinc-100 bg-zinc-800/80 border border-zinc-700" data-view="all"
+              onclick="setSmartView('all')">
+              <span
+                class="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="1.6">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </span>
+              <span class="flex-1">All</span>
+              <span id="count-all" class="text-xs rounded-full bg-zinc-900 px-2 py-0.5 text-zinc-400">0</span>
+            </button>
+
+            <button class="sidebar-item flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-left transition
+                     text-zinc-300 hover:bg-zinc-800/60" data-view="to_read" onclick="setSmartView('to_read')">
+              <span class="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="1.6">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M4 19.5A2.5 2.5 0 016.5 17H20M4 4.5A2.5 2.5 0 016.5 7H20v13H6.5A2.5 2.5 0 014 17.5v-13z" />
+                </svg>
+              </span>
+              <span class="flex-1">To Read</span>
+              <span id="count-to_read" class="text-xs rounded-full bg-zinc-900 px-2 py-0.5 text-zinc-400">0</span>
+            </button>
+
+            <button class="sidebar-item flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-left transition
+                     text-zinc-300 hover:bg-zinc-800/60" data-view="favorites" onclick="setSmartView('favorites')">
+              <span class="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="1.6">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M12 17.3l-5.09 2.97 1.36-5.83L3 9.77l5.91-.51L12 3.75l3.09 5.51 5.91.51-5.27 4.67 1.36 5.83L12 17.3z" />
+                </svg>
+              </span>
+              <span class="flex-1">Favorites</span>
+              <span id="count-favorites" class="text-xs rounded-full bg-zinc-900 px-2 py-0.5 text-zinc-400">0</span>
+            </button>
+
+            <button class="sidebar-item flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-left transition
+                     text-zinc-300 hover:bg-zinc-800/60" data-view="recent" onclick="setSmartView('recent')">
+              <span class="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-purple-500/10 text-purple-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="1.6">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M12 6v6l3 3m5-3a8 8 0 11-16 0 8 8 0 0116 0z" />
+                </svg>
+              </span>
+              <span class="flex-1">Recently Added</span>
+              <span id="count-recent" class="text-xs rounded-full bg-zinc-900 px-2 py-0.5 text-zinc-400">0</span>
+            </button>
+
+            <button class="sidebar-item flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-left transition
+                     text-zinc-300 hover:bg-zinc-800/60" data-view="untagged" onclick="setSmartView('untagged')">
+              <span class="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-rose-500/10 text-rose-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="1.6">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M12 9v4m0 4h.01M12 3a9 9 0 110 18 9 9 0 010-18z" />
+                </svg>
+              </span>
+              <span class="flex-1">Untagged</span>
+              <span id="count-untagged" class="text-xs rounded-full bg-zinc-900 px-2 py-0.5 text-zinc-400">0</span>
+            </button>
+          </nav>
+        </section>
+
+        <!-- Collections -->
+        <section>
+          <div
+            class="px-2 mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            <span>Collections</span>
+            <button class="text-[11px] text-emerald-400 hover:text-emerald-300" type="button"
+              onclick="showToast('Collections are static in this demo')">
+              Manage
+            </button>
+          </div>
+          <nav class="space-y-1" aria-label="Collections">
+            <button class="collection-item flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-left transition
+                     text-zinc-300 hover:bg-zinc-800/60" data-collection="work" onclick="setCollectionFilter('work')">
+              <span
+                class="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400 text-xs">W</span>
+              <span class="flex-1">Work</span>
+            </button>
+            <button class="collection-item flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-left transition
+                     text-zinc-300 hover:bg-zinc-800/60" data-collection="trading-bot"
+              onclick="setCollectionFilter('trading-bot')">
+              <span
+                class="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 text-xs">TB</span>
+              <span class="flex-1">Side Project – Trading Bot</span>
+            </button>
+            <button class="collection-item flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-left transition
+                     text-zinc-300 hover:bg-zinc-800/60" data-collection="learning"
+              onclick="setCollectionFilter('learning')">
+              <span
+                class="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400 text-xs">L</span>
+              <span class="flex-1">Learning</span>
+            </button>
+            <button class="collection-item flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-left transition
+                     text-zinc-300 hover:bg-zinc-800/60" data-collection="reference"
+              onclick="setCollectionFilter('reference')">
+              <span
+                class="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-fuchsia-500/10 text-fuchsia-400 text-xs">R</span>
+              <span class="flex-1">Reference</span>
+            </button>
+          </nav>
+        </section>
+
+        <!-- Tag legend -->
+        <section>
+          <div class="px-2 mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Tag Legend
+          </div>
+          <div class="flex flex-wrap gap-1 px-1">
+            <span
+              class="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-300">
+              <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+              react
+            </span>
+            <span
+              class="inline-flex items-center gap-1 rounded-full border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-[11px] text-sky-300">
+              <span class="h-1.5 w-1.5 rounded-full bg-sky-400"></span>
+              node
+            </span>
+            <span
+              class="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-300">
+              <span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+              system-design
+            </span>
+            <span
+              class="inline-flex items-center gap-1 rounded-full border border-fuchsia-500/40 bg-fuchsia-500/10 px-2 py-0.5 text-[11px] text-fuchsia-300">
+              <span class="h-1.5 w-1.5 rounded-full bg-fuchsia-400"></span>
+              trading
+            </span>
+          </div>
+        </section>
+      </div>
+
+      <div class="px-4 py-3 border-t border-zinc-800 text-xs text-zinc-500 flex items-center justify-between">
+        <span>v1.0 • JSON file</span>
+        <span class="inline-flex items-center gap-1">
+          <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>API: localhost:4000</span>
+        </span>
+      </div>
+    </aside>
+
+    <!-- Main area -->
+    <div class="flex flex-1 min-w-0 flex-col">
+
+      <!-- Top header -->
+      <header class="sticky top-0 z-20 border-b border-zinc-800 bg-zinc-950/90 backdrop-blur flex items-center">
+        <div class="flex items-center w-full px-3 py-2 gap-2 md:gap-4">
+          <button type="button"
+            class="md:hidden inline-flex items-center justify-center rounded-lg p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900/80 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            aria-label="Open sidebar" onclick="toggleSidebar()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
+          <div class="md:hidden flex items-center gap-2">
+            <div
+              class="h-7 w-7 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center">
+              <span class="text-emerald-400 text-sm font-semibold">B</span>
+            </div>
+            <span class="text-sm font-semibold tracking-tight">Bookmarks</span>
+          </div>
+
+          <div class="flex-1 flex items-center">
+            <div class="relative w-full max-w-xl mx-auto">
+              <span class="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-zinc-500">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="1.6">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
+                </svg>
+              </span>
+              <input id="globalSearch" type="text" placeholder="Search title, URL, tags, notes..." class="w-full rounded-xl border border-zinc-800 bg-zinc-900/70 pl-8 pr-24 py-1.5 text-sm
+                       text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/70
+                       focus:border-emerald-500/60 transition-colors" oninput="applyFilters()" />
+              <div class="absolute inset-y-0 right-1.5 flex items-center gap-1.5">
+                <button type="button" class="hidden sm:inline-flex items-center gap-1.5 rounded-lg px-2 py-0.5 text-[11px]
+                         bg-zinc-800/80 text-zinc-400 border border-zinc-700" onclick="focusSearch()">
+                  <span>/</span>
+                  <span class="hidden md:inline">Focus</span>
+                </button>
+                <button type="button" class="inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px]
+                         bg-zinc-800/80 text-zinc-300 border border-emerald-500/50" onclick="openBookmarkModal()">
+                  <span class="hidden md:inline">New</span>
+                  <span class="md:hidden">+</span>
+                  <span
+                    class="hidden md:inline text-[10px] text-emerald-300 border border-emerald-500/40 rounded px-1">N</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 md:gap-3">
+            <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900/70
+                     text-zinc-200 hover:bg-zinc-800/90 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              aria-label="Toggle dark mode" onclick="toggleTheme()">
+              <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 hidden dark:inline"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M12 4V2m0 20v-2m8-8h2M2 12h2m13.66-5.66L19.78 4.22M4.22 19.78l2.12-2.12m11.32 0l2.12 2.12M4.22 4.22l2.12 2.12M12 8a4 4 0 110 8 4 4 0 010-8z" />
+              </svg>
+              <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 dark:hidden" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="1.6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+              </svg>
+            </button>
+
+            <button type="button" class="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900/70
+                     text-zinc-300 hover:bg-zinc-800/90 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              aria-label="Notifications" onclick="showToast('No new notifications')">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1.6">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+            </button>
+
+            <div class="hidden md:flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900/70 px-2 py-1">
+              <div
+                class="h-6 w-6 rounded-full bg-gradient-to-tr from-emerald-500 to-sky-500 text-[11px] flex items-center justify-center font-semibold">
+                BK
+              </div>
+              <div class="text-xs text-zinc-300">
+                <div class="font-medium leading-tight">Power User</div>
+                <div class="text-[10px] text-zinc-500">Bookmarks Studio</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="flex-1 min-h-0 overflow-y-auto bg-gradient-to-b from-zinc-950 via-zinc-950 to-zinc-900">
+        <div class="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-5 space-y-4 sm:space-y-6">
+
+          <!-- Overview cards -->
+          <section class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div
+              class="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 backdrop-blur shadow-sm shadow-black/40 p-3 sm:p-4 flex items-start gap-3 hover:border-emerald-500/60 hover:bg-zinc-900/80 transition-transform hover:scale-[1.01]">
+              <div
+                class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="1.6">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M5 5v14l7-4 7 4V5a2 2 0 00-2-2H7a2 2 0 00-2 2z" />
+                </svg>
+              </div>
+              <div class="flex-1">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="text-xs uppercase tracking-wide text-zinc-400">Total bookmarks</div>
+                  <span
+                    class="text-[11px] text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-2 py-0.5">
+                    Organized
+                  </span>
+                </div>
+                <div class="mt-1 flex items-baseline gap-2">
+                  <div id="stat-total" class="text-lg sm:text-xl font-semibold text-zinc-50">0</div>
+                  <div class="text-[11px] text-zinc-500">items</div>
+                </div>
+                <div class="mt-1 text-[11px] text-zinc-500 line-clamp-2">
+                  Centralized library of technical links, docs, repos, tools and articles.
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 backdrop-blur shadow-sm shadow-black/40 p-3 sm:p-4 flex items-start gap-3 hover:border-sky-500/60 hover:bg-zinc-900/80 transition-transform hover:scale-[1.01]">
+              <div class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-xl bg-sky-500/15 text-sky-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="1.6">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M4 19.5A2.5 2.5 0 016.5 17H20M4 4.5A2.5 2.5 0 016.5 7H20v13H6.5A2.5 2.5 0 014 17.5v-13z" />
+                </svg>
+              </div>
+              <div class="flex-1">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="text-xs uppercase tracking-wide text-zinc-400">To read queue</div>
+                  <span
+                    class="text-[11px] text-sky-300 bg-sky-500/10 border border-sky-500/30 rounded-full px-2 py-0.5">
+                    Focus
+                  </span>
+                </div>
+                <div class="mt-1 flex items-baseline gap-2">
+                  <div id="stat-to_read" class="text-lg sm:text-xl font-semibold text-zinc-50">0</div>
+                  <div class="text-[11px] text-zinc-500">pending</div>
+                </div>
+                <div class="mt-1 text-[11px] text-zinc-500 line-clamp-2">
+                  High-signal articles, docs and videos queued for deep work.
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 backdrop-blur shadow-sm shadow-black/40 p-3 sm:p-4 flex items-start gap-3 hover:border-amber-500/60 hover:bg-zinc-900/80 transition-transform hover:scale-[1.01]">
+              <div
+                class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="1.6">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M12 17.3l-5.09 2.97 1.36-5.83L3 9.77l5.91-.51L12 3.75l3.09 5.51 5.91.51-5.27 4.67 1.36 5.83L12 17.3z" />
+                </svg>
+              </div>
+              <div class="flex-1">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="text-xs uppercase tracking-wide text-zinc-400">Favorites</div>
+                  <span
+                    class="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-full px-2 py-0.5">
+                    Reference
+                  </span>
+                </div>
+                <div class="mt-1 flex items-baseline gap-2">
+                  <div id="stat-favorites" class="text-lg sm:text-xl font-semibold text-zinc-50">0</div>
+                  <div class="text-[11px] text-zinc-500">pinned</div>
+                </div>
+                <div class="mt-1 text-[11px] text-zinc-500 line-clamp-2">
+                  Canonical docs and gold reference links you always return to.
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Filters -->
+          <section
+            class="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 backdrop-blur px-3 sm:px-4 py-3 sm:py-3.5 flex flex-wrap items-center gap-2.5">
+            <div class="flex items-center gap-2 text-xs text-zinc-400">
+              <span
+                class="hidden sm:inline-flex h-6 w-6 items-center justify-center rounded-lg bg-zinc-900/80 border border-zinc-800">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="1.6">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18M6 8h12M9 12h6M10 16h4M11 20h2" />
+                </svg>
+              </span>
+              <span class="text-[11px] uppercase tracking-wide">Filters</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 flex-1">
+              <select id="filterTag"
+                class="h-8 rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/70"
+                onchange="applyFilters()">
+                <option value="">Tag: Any</option>
+                <option value="react">Tag: react</option>
+                <option value="node">Tag: node</option>
+                <option value="system-design">Tag: system-design</option>
+                <option value="trading">Tag: trading</option>
+              </select>
+
+              <select id="filterType"
+                class="h-8 rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/70"
+                onchange="applyFilters()">
+                <option value="">Type: Any</option>
+                <option value="article">Article</option>
+                <option value="docs">Docs</option>
+                <option value="video">Video</option>
+                <option value="tool">Tool</option>
+                <option value="repo">Repo</option>
+              </select>
+
+              <select id="filterStatus"
+                class="h-8 rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/70"
+                onchange="applyFilters()">
+                <option value="">Status: Any</option>
+                <option value="to_read">To read</option>
+                <option value="active">Active</option>
+                <option value="archived">Archived</option>
+                <option value="favorite">Favorite</option>
+              </select>
+
+              <select id="filterDate"
+                class="hidden sm:inline h-8 rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/70"
+                onchange="applyFilters()">
+                <option value="">Date: Any</option>
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="365">Last year</option>
+              </select>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <div class="inline-flex rounded-xl border border-zinc-800 bg-zinc-950/70 p-0.5">
+                <button id="btn-view-list" type="button"
+                  class="inline-flex items-center justify-center rounded-lg px-2.5 py-1 text-[11px] text-zinc-100 bg-zinc-800"
+                  onclick="setViewMode('list')">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 mr-1" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="1.6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h10" />
+                  </svg>
+                  List
+                </button>
+                <button id="btn-view-grid" type="button"
+                  class="inline-flex items-center justify-center rounded-lg px-2.5 py-1 text-[11px] text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/80"
+                  onclick="setViewMode('grid')">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 mr-1" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="1.6">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />
+                  </svg>
+                  Cards
+                </button>
+              </div>
+
+              <select id="sortBy"
+                class="h-8 rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/70"
+                onchange="applyFilters()">
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="title">Title A–Z</option>
+                <option value="visits">Most visited</option>
+              </select>
+            </div>
+          </section>
+
+          <!-- Active filters summary -->
+          <section id="activeFilters"
+            class="hidden rounded-2xl border border-zinc-800/80 bg-zinc-900/60 backdrop-blur px-3 sm:px-4 py-2.5 text-xs text-zinc-300">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 flex-wrap" id="activeFiltersList"></div>
+              <button type="button" class="text-[11px] text-zinc-400 hover:text-emerald-300" onclick="clearFilters()">
+                Clear filters
+              </button>
+            </div>
+          </section>
+
+          <!-- Results -->
+          <section class="space-y-3 sm:space-y-4">
+            <div class="flex items-center justify-between gap-2 text-xs text-zinc-400">
+              <div>
+                <span id="resultsCount">0</span>
+                <span class="ml-1">bookmarks</span>
+                <span class="hidden sm:inline" id="resultsContext"></span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button type="button"
+                  class="hidden sm:inline-flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-1 text-[11px] text-zinc-300 hover:border-emerald-500/60 hover:text-emerald-300"
+                  onclick="showToast('Bulk operations are mocked in this demo')">
+                  <span>Bulk actions</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="1.6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                <button type="button"
+                  class="inline-flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-1 text-[11px] text-zinc-300 hover:border-emerald-500/60 hover:text-emerald-300"
+                  onclick="openBookmarkModal()">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="1.6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14m-7-7h14" />
+                  </svg>
+                  <span>New bookmark</span>
+                </button>
+              </div>
+            </div>
+
+            <div id="bookmarksContainer" class="space-y-2.5"></div>
+          </section>
+        </div>
+      </main>
+
+      <footer class="border-t border-zinc-800 bg-zinc-950/95 text-xs text-zinc-500">
+        <div class="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-2 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="hidden sm:inline">Last updated:</span>
+            <span id="lastUpdated">—</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center gap-1">
+              <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>API connected</span>
+            </span>
+            <span class="hidden sm:inline">&copy; 2026 Bookmarks Studio</span>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Add/Edit Bookmark Modal -->
+  <div id="bookmarkModal" class="fixed inset-0 z-40 hidden items-center justify-center bg-black/70 backdrop-blur-sm"
+    role="dialog" aria-modal="true" aria-labelledby="bookmarkModalTitle">
+    <div class="relative w-full max-w-lg mx-3">
+      <div class="rounded-2xl border border-zinc-800 bg-zinc-950/95 shadow-xl shadow-black/60">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+          <div>
+            <h2 id="bookmarkModalTitle" class="text-sm font-semibold text-zinc-100">New Bookmark</h2>
+            <p class="text-[11px] text-zinc-500">Capture a link with enough context so future you knows why it matters.
+            </p>
+          </div>
+          <button type="button"
+            class="inline-flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            aria-label="Close" onclick="closeBookmarkModal()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <form id="bookmarkForm" class="px-4 pt-3 pb-4 space-y-3 text-sm" onsubmit="submitBookmarkForm(event)">
+          <input type="hidden" id="bookmarkId" />
+
+          <div class="space-y-1">
+            <label for="bookmarkUrl" class="text-xs font-medium text-zinc-300">URL <span
+                class="text-rose-400">*</span></label>
+            <input id="bookmarkUrl" type="url" required placeholder="https://"
+              class="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/70" />
+          </div>
+
+          <div class="space-y-1">
+            <label for="bookmarkTitle" class="text-xs font-medium text-zinc-300">Title</label>
+            <input id="bookmarkTitle" type="text" placeholder="Descriptive title"
+              class="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/70" />
+          </div>
+
+          <div class="space-y-1">
+            <label for="bookmarkNotes" class="text-xs font-medium text-zinc-300">Notes / why you saved this</label>
+            <textarea id="bookmarkNotes" rows="3"
+              placeholder="E.g., Great explanation of event loop + backpressure, use for interview prep."
+              class="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/70 resize-none"></textarea>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <label for="bookmarkTags" class="text-xs font-medium text-zinc-300">Tags (comma separated)</label>
+              <input id="bookmarkTags" type="text" placeholder="react, system-design, trading"
+                class="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/70" />
+            </div>
+            <div class="space-y-1">
+              <label for="bookmarkCollections" class="text-xs font-medium text-zinc-300">Collections</label>
+              <select id="bookmarkCollections" multiple
+                class="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/70">
+                <option value="work">Work</option>
+                <option value="trading-bot">Side Project – Trading Bot</option>
+                <option value="learning">Learning</option>
+                <option value="reference">Reference</option>
+              </select>
+              <p class="mt-0.5 text-[10px] text-zinc-500">Hold Ctrl/Cmd to select multiple.</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="space-y-1">
+              <label for="bookmarkType" class="text-xs font-medium text-zinc-300">Type</label>
+              <select id="bookmarkType"
+                class="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/70">
+                <option value="article">Article</option>
+                <option value="docs">Docs</option>
+                <option value="video">Video</option>
+                <option value="tool">Tool</option>
+                <option value="repo">Repo</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div class="space-y-1">
+              <label for="bookmarkStatus" class="text-xs font-medium text-zinc-300">Status</label>
+              <select id="bookmarkStatus"
+                class="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/70">
+                <option value="to_read">To read</option>
+                <option value="active">Active</option>
+                <option value="archived">Archived</option>
+                <option value="favorite">Favorite</option>
+              </select>
+            </div>
+
+            <div class="space-y-1">
+              <span class="text-xs font-medium text-zinc-300">Favorite</span>
+              <button type="button" id="bookmarkFavoriteBtn"
+                class="mt-1 inline-flex items-center gap-1 rounded-xl border border-zinc-800 bg-zinc-900/80 px-2.5 py-1 text-xs text-zinc-300 hover:border-amber-400/80 hover:text-amber-300"
+                onclick="toggleFavoriteFlag()">
+                <svg id="bookmarkFavoriteIcon" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-zinc-500"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M12 17.3l-5.09 2.97 1.36-5.83L3 9.77l5.91-.51L12 3.75l3.09 5.51 5.91.51-5.27 4.67 1.36 5.83L12 17.3z" />
+                </svg>
+                <span id="bookmarkFavoriteLabel">Mark as favorite</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-1">
+            <p class="text-[11px] text-zinc-500">
+              Press <span class="rounded border border-zinc-700 px-1 text-[10px] text-zinc-300">Enter</span> to save,
+              <span class="rounded border border-zinc-700 px-1 text-[10px] text-zinc-300">Esc</span> to close.
+            </p>
+            <div class="flex items-center gap-2">
+              <button type="button"
+                class="rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800/90"
+                onclick="closeBookmarkModal()">
+                Cancel
+              </button>
+              <button type="submit"
+                class="rounded-xl border border-emerald-500/80 bg-emerald-500/90 px-3.5 py-1.5 text-xs font-medium text-zinc-950 hover:bg-emerald-400">
+                Save bookmark
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed inset-x-0 bottom-3 z-50 flex justify-center pointer-events-none">
+    <div
+      class="pointer-events-auto hidden max-w-xs rounded-2xl border border-zinc-800 bg-zinc-950/95 px-3 py-2 shadow-lg shadow-black/60 text-xs text-zinc-200"
+      id="toastContent">
+      <div class="flex items-start gap-2">
+        <span
+          class="mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        </span>
+        <span id="toastMessage"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:4000/api';
+    let bookmarks = [];
+    let viewMode = 'list';
+    let smartView = 'all';
+    let collectionFilter = '';
+    let favoriteFlag = false;
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '—';
+      const d = new Date(dateStr);
+      if (Number.isNaN(d.getTime())) return '—';
+      return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function getDomain(url) {
+      try {
+        const u = new URL(url);
+        return u.hostname.replace(/^www\./, '');
+      } catch {
+        return '';
+      }
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toastContent');
+      const msgEl = document.getElementById('toastMessage');
+      msgEl.textContent = message;
+      toast.classList.remove('hidden');
+      clearTimeout(showToast._timer);
+      showToast._timer = setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 2500);
+    }
+
+    function focusSearch() {
+      const el = document.getElementById('globalSearch');
+      el?.focus();
+      el?.select();
+    }
+
+    function toggleTheme() {
+      const root = document.documentElement;
+      const isDark = root.classList.contains('dark');
+      if (isDark) {
+        root.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      } else {
+        root.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      }
+    }
+
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      if (!sidebar) return;
+      const hidden = sidebar.classList.contains('-translate-x-full');
+      if (hidden) {
+        sidebar.classList.remove('-translate-x-full', 'hidden');
+        sidebar.classList.add('flex');
+      } else {
+        sidebar.classList.add('-translate-x-full');
+        setTimeout(() => sidebar.classList.add('hidden'), 200);
+      }
+    }
+
+    function setSmartView(view) {
+      smartView = view;
+      document.querySelectorAll('.sidebar-item').forEach(btn => {
+        btn.classList.remove('bg-zinc-800/80', 'border', 'border-zinc-700', 'text-zinc-100');
+        btn.classList.add('text-zinc-300');
+        if (btn.dataset.view === view) {
+          btn.classList.add('bg-zinc-800/80', 'border', 'border-zinc-700', 'text-zinc-100');
+          btn.classList.remove('text-zinc-300');
+        }
+      });
+      applyFilters();
+    }
+
+    function setCollectionFilter(colId) {
+      collectionFilter = collectionFilter === colId ? '' : colId;
+      document.querySelectorAll('.collection-item').forEach(btn => {
+        if (btn.dataset.collection === collectionFilter) {
+          btn.classList.add('bg-zinc-800/80', 'border', 'border-zinc-700', 'text-zinc-100');
+        } else {
+          btn.classList.remove('bg-zinc-800/80', 'border', 'border-zinc-700', 'text-zinc-100');
+          btn.classList.add('text-zinc-300');
+        }
+      });
+      applyFilters();
+    }
+
+    function setViewMode(mode) {
+      viewMode = mode;
+      const btnList = document.getElementById('btn-view-list');
+      const btnGrid = document.getElementById('btn-view-grid');
+      if (mode === 'list') {
+        btnList.classList.add('bg-zinc-800', 'text-zinc-100');
+        btnGrid.classList.remove('bg-zinc-800', 'text-zinc-100');
+        btnGrid.classList.add('text-zinc-400');
+      } else {
+        btnGrid.classList.add('bg-zinc-800', 'text-zinc-100');
+        btnList.classList.remove('bg-zinc-800', 'text-zinc-100');
+        btnList.classList.add('text-zinc-400');
+      }
+      renderBookmarks();
+    }
+
+    function clearFilters() {
+      document.getElementById('filterTag').value = '';
+      document.getElementById('filterType').value = '';
+      document.getElementById('filterStatus').value = '';
+      document.getElementById('filterDate').value = '';
+      collectionFilter = '';
+      document.querySelectorAll('.collection-item').forEach(btn => {
+        btn.classList.remove('bg-zinc-800/80', 'border', 'border-zinc-700', 'text-zinc-100');
+        btn.classList.add('text-zinc-300');
+      });
+      document.getElementById('globalSearch').value = '';
+      setSmartView('all');
+      applyFilters();
+    }
+
+    function applyFilters() {
+      renderBookmarks();
+      updateActiveFiltersUI();
+    }
+
+    function updateActiveFiltersUI() {
+      const filtersEl = document.getElementById('activeFilters');
+      const listEl = document.getElementById('activeFiltersList');
+      const tag = document.getElementById('filterTag').value;
+      const type = document.getElementById('filterType').value;
+      const status = document.getElementById('filterStatus').value;
+      const date = document.getElementById('filterDate').value;
+      const search = document.getElementById('globalSearch').value.trim();
+      const chips = [];
+
+      if (smartView !== 'all') chips.push({ label: `View: ${smartView}`, type: 'smart' });
+      if (collectionFilter) chips.push({ label: `Collection: ${collectionFilter}`, type: 'collection' });
+      if (tag) chips.push({ label: `Tag: ${tag}`, type: 'tag' });
+      if (type) chips.push({ label: `Type: ${type}`, type: 'type' });
+      if (status) chips.push({ label: `Status: ${status}`, type: 'status' });
+      if (date) chips.push({ label: `Date: last ${date}d`, type: 'date' });
+      if (search) chips.push({ label: `Search: "${search}"`, type: 'search' });
+
+      listEl.innerHTML = '';
+      chips.forEach(ch => {
+        const span = document.createElement('span');
+        span.className = 'inline-flex items-center gap-1 rounded-full border border-zinc-700 bg-zinc-900/80 px-2 py-0.5';
+        span.innerHTML = `
+          <span class="h-1.5 w-1.5 rounded-full ${ch.type === 'smart' ? 'bg-emerald-400' : 'bg-zinc-500'}"></span>
+          <span>${ch.label}</span>
+        `;
+        listEl.appendChild(span);
+      });
+
+      filtersEl.classList.toggle('hidden', chips.length === 0);
+    }
+
+    async function fetchBookmarks() {
+      try {
+        const res = await fetch(`${API_BASE}/bookmarks`);
+        const json = await res.json();
+        bookmarks = json.data || [];
+        renderBookmarks();
+        document.getElementById('lastUpdated').textContent = 'just now • from API';
+      } catch (err) {
+        console.error('Error fetching bookmarks', err);
+        showToast('Failed to load bookmarks from API');
+        document.getElementById('lastUpdated').textContent = 'error loading API';
+      }
+    }
+
+    async function createBookmark(payload) {
+      const res = await fetch(`${API_BASE}/bookmarks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('Failed to create');
+      const json = await res.json();
+      return json.data;
+    }
+
+    async function updateBookmarkApi(id, payload) {
+      const res = await fetch(`${API_BASE}/bookmarks/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('Failed to update');
+      const json = await res.json();
+      return json.data;
+    }
+
+    async function deleteBookmarkApi(id) {
+      const res = await fetch(`${API_BASE}/bookmarks/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok && res.status !== 204) throw new Error('Failed to delete');
+    }
+
+    function getFilteredBookmarks() {
+      const search = document.getElementById('globalSearch').value.trim().toLowerCase();
+      const tag = document.getElementById('filterTag').value;
+      const type = document.getElementById('filterType').value;
+      const status = document.getElementById('filterStatus').value;
+      const date = document.getElementById('filterDate').value;
+      const sortBy = document.getElementById('sortBy').value;
+
+      const now = new Date();
+      let data = bookmarks.slice();
+
+      if (smartView === 'to_read') {
+        data = data.filter(b => b.status === 'to_read');
+      } else if (smartView === 'favorites') {
+        data = data.filter(b => b.favorite || b.status === 'favorite');
+      } else if (smartView === 'recent') {
+        data = data.filter(b => {
+          const created = new Date(b.createdAt);
+          return (now - created) / (1000 * 60 * 60 * 24) <= 7;
+        });
+      } else if (smartView === 'untagged') {
+        data = data.filter(b => !b.tags || b.tags.length === 0);
+      }
+
+      if (collectionFilter) {
+        data = data.filter(b => b.collections?.includes(collectionFilter));
+      }
+
+      if (search) {
+        data = data.filter(b => {
+          const domain = b.preview?.domain || getDomain(b.url);
+          const text = [
+            b.title || '',
+            b.url || '',
+            domain || '',
+            b.description || '',
+            (b.tags || []).join(' '),
+          ].join(' ').toLowerCase();
+          return text.includes(search);
+        });
+      }
+
+      if (tag) data = data.filter(b => b.tags?.includes(tag));
+      if (type) data = data.filter(b => b.type === type);
+
+      if (status) {
+        if (status === 'favorite') {
+          data = data.filter(b => b.favorite || b.status === 'favorite');
+        } else {
+          data = data.filter(b => b.status === status);
+        }
+      }
+
+      if (date) {
+        const days = parseInt(date, 10);
+        data = data.filter(b => {
+          const created = new Date(b.createdAt);
+          return (now - created) / (1000 * 60 * 60 * 24) <= days;
+        });
+      }
+
+      if (sortBy === 'newest') {
+        data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      } else if (sortBy === 'oldest') {
+        data.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      } else if (sortBy === 'title') {
+        data.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+      } else if (sortBy === 'visits') {
+        data.sort((a, b) => (b.visitCount || 0) - (a.visitCount || 0));
+      }
+
+      return data;
+    }
+
+    function renderBookmarks() {
+      const container = document.getElementById('bookmarksContainer');
+      const filtered = getFilteredBookmarks();
+
+      container.innerHTML = '';
+      filtered.forEach(b => {
+        if (viewMode === 'list') container.appendChild(renderBookmarkRow(b));
+        else container.appendChild(renderBookmarkCard(b));
+      });
+
+      document.getElementById('stat-total').textContent = bookmarks.length;
+      document.getElementById('stat-to_read').textContent = bookmarks.filter(b => b.status === 'to_read').length;
+      document.getElementById('stat-favorites').textContent = bookmarks.filter(b => b.favorite || b.status === 'favorite').length;
+
+      document.getElementById('count-all').textContent = bookmarks.length;
+      document.getElementById('count-to_read').textContent = bookmarks.filter(b => b.status === 'to_read').length;
+      document.getElementById('count-favorites').textContent = bookmarks.filter(b => b.favorite || b.status === 'favorite').length;
+      document.getElementById('count-recent').textContent = bookmarks.filter(b => {
+        const created = new Date(b.createdAt);
+        const now = new Date();
+        return (now - created) / (1000 * 60 * 60 * 24) <= 7;
+      }).length;
+      document.getElementById('count-untagged').textContent = bookmarks.filter(b => !b.tags || b.tags.length === 0).length;
+
+      document.getElementById('resultsCount').textContent = filtered.length;
+
+      const ctx = [];
+      if (smartView !== 'all') ctx.push(`Smart view: ${smartView}`);
+      if (collectionFilter) ctx.push(`Collection: ${collectionFilter}`);
+      document.getElementById('resultsContext').textContent = ctx.length ? `• ${ctx.join(' • ')}` : '';
+    }
+
+    function renderBookmarkRow(b) {
+      const el = document.createElement('article');
+      el.className = 'rounded-2xl border border-zinc-800/80 bg-zinc-900/70 backdrop-blur px-3.5 py-2.5 flex items-start gap-3 hover:border-emerald-500/60 hover:bg-zinc-900/90 transition-transform hover:scale-[1.01]';
+
+      const domain = b.preview?.domain || getDomain(b.url);
+      const isFavorite = b.favorite || b.status === 'favorite';
+
+      el.innerHTML = `
+        <div class="mt-0.5">
+          <div class="h-8 w-8 rounded-xl bg-zinc-950/80 border border-zinc-800 flex items-center justify-center text-xs text-zinc-400">
+            ${domain ? domain[0]?.toUpperCase() : '🌐'}
+          </div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5">
+                <a href="${b.url}" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-emerald-300 hover:text-emerald-200 truncate max-w-xs sm:max-w-md">
+                  ${b.title || b.url}
+                </a>
+                ${b.isDead ? `
+                  <span class="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] text-rose-300 border border-rose-500/40">
+                    <span class="h-1.5 w-1.5 rounded-full bg-rose-400"></span>
+                    Dead link
+                  </span>
+                ` : ''}
+                ${isFavorite ? `
+                  <span class="inline-flex items-center justify-center rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/40 px-1.5 py-0.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                    </svg>
+                  </span>
+                ` : ''}
+              </div>
+              <div class="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
+                <span>${domain || ''}</span>
+                <span class="hidden sm:inline">•</span>
+                <span class="hidden sm:inline">${b.type}</span>
+                <span class="hidden sm:inline">•</span>
+                <span>Added ${formatDate(b.createdAt)}</span>
+                ${b.lastVisitedAt ? `<span class="hidden sm:inline">• Last visited ${formatDate(b.lastVisitedAt)}</span>` : ''}
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] border border-zinc-700 bg-zinc-900/80 text-zinc-300">
+                <span class="h-1.5 w-1.5 rounded-full ${b.status === 'to_read' ? 'bg-sky-400' :
+          b.status === 'active' ? 'bg-emerald-400' :
+            b.status === 'archived' ? 'bg-zinc-500' :
+              'bg-amber-400'
+        }"></span>
+                ${b.status}
+              </span>
+            </div>
+          </div>
+          <p class="mt-1 text-xs text-zinc-300 line-clamp-2">${b.description || ''}</p>
+          <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+            ${(b.tags || []).map(tag => `
+              <span class="inline-flex items-center gap-1 rounded-full border border-zinc-700 bg-zinc-900/90 px-1.5 py-0.5 text-[10px] text-zinc-200">
+                <span class="h-1.5 w-1.5 rounded-full ${tag === 'react' ? 'bg-emerald-400' :
+            tag === 'node' ? 'bg-sky-400' :
+              tag === 'system-design' ? 'bg-amber-400' :
+                tag === 'trading' ? 'bg-fuchsia-400' : 'bg-zinc-500'
+          }"></span>
+                ${tag}
+              </span>
+            `).join('')}
+            ${(b.collections || []).map(col => `
+              <span class="inline-flex items-center gap-1 rounded-full bg-zinc-800/80 px-1.5 py-0.5 text-[10px] text-zinc-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h5l2 3h11v7a2 2 0 01-2 2H3zM3 7V5a2 2 0 012-2h4.5L12 5h7a2 2 0 012 2" />
+                </svg>
+                ${col}
+              </span>
+            `).join('')}
+          </div>
+        </div>
+        <div class="flex flex-col items-end gap-1 text-[11px] text-zinc-400 min-w-[80px]">
+          <div class="flex items-center gap-1">
+            <span>${b.visitCount || 0} visits</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button
+              type="button"
+              class="inline-flex items-center justify-center h-7 w-7 rounded-lg bg-zinc-900/80 border border-zinc-800 text-zinc-300 hover:bg-zinc-800/90"
+              onclick="window.open('${b.url}', '_blank')"
+              aria-label="Open bookmark"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14 3h7v7M10 14L21 3M5 5h4M5 9h2M5 13h3M5 17h4" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center justify-center h-7 w-7 rounded-lg bg-zinc-900/80 border border-zinc-800 text-zinc-300 hover:bg-zinc-800/90"
+              onclick="editBookmark('${b.id}')"
+              aria-label="Edit bookmark"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.651-1.651a2.121 2.121 0 113 3l-9.193 9.193a3 3 0 01-1.06.664L7 17l1.307-4.26a3 3 0 01.664-1.06l7.891-7.193zM19 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-8a2 2 0 012-2h5" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center justify-center h-7 w-7 rounded-lg bg-zinc-900/80 border border-zinc-800 text-zinc-300 hover:bg-zinc-800/90"
+              onclick="deleteBookmark('${b.id}')"
+              aria-label="Delete bookmark"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 3h6M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      `;
+      return el;
+    }
+
+    function renderBookmarkCard(b) {
+      const el = document.createElement('article');
+      el.className = 'rounded-2xl border border-zinc-800/80 bg-zinc-900/70 backdrop-blur px-3 py-2.5 hover:border-emerald-500/60 hover:bg-zinc-900/90 transition-transform hover:scale-[1.01]';
+
+      const domain = b.preview?.domain || getDomain(b.url);
+      const isFavorite = b.favorite || b.status === 'favorite';
+
+      el.innerHTML = `
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex items-center gap-2 min-w-0">
+            <div class="h-7 w-7 rounded-xl bg-zinc-950/80 border border-zinc-800 flex items-center justify-center text-[11px] text-zinc-400">
+              ${domain ? domain[0]?.toUpperCase() : '🌐'}
+            </div>
+            <div class="min-w-0">
+              <a href="${b.url}" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-emerald-300 hover:text-emerald-200 block truncate">
+                ${b.title || b.url}
+              </a>
+              <div class="text-[11px] text-zinc-500 truncate flex items-center gap-1">
+                <span>${domain || ''}</span>
+                <span class="hidden sm:inline">• ${b.type}</span>
+              </div>
+            </div>
+          </div>
+          ${isFavorite ? `
+            <span class="inline-flex items-center justify-center rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/40 px-1.5 py-0.5">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+              </svg>
+            </span>
+          ` : ''}
+        </div>
+        <p class="mt-1.5 text-xs text-zinc-300 line-clamp-3">${b.description || ''}</p>
+        <div class="mt-2 flex flex-wrap items-center gap-1.5">
+          ${(b.tags || []).map(tag => `
+            <span class="inline-flex items-center gap-1 rounded-full border border-zinc-700 bg-zinc-900/90 px-1.5 py-0.5 text-[10px] text-zinc-200">
+              <span class="h-1.5 w-1.5 rounded-full ${tag === 'react' ? 'bg-emerald-400' :
+          tag === 'node' ? 'bg-sky-400' :
+            tag === 'system-design' ? 'bg-amber-400' :
+              tag === 'trading' ? 'bg-fuchsia-400' : 'bg-zinc-500'
+        }"></span>
+              ${tag}
+            </span>
+          `).join('')}
+        </div>
+        <div class="mt-2 flex items-center justify-between gap-2 text-[11px] text-zinc-400">
+          <div class="flex items-center gap-1">
+            <span class="inline-flex items-center gap-1 rounded-full bg-zinc-900/90 border border-zinc-800 px-1.5 py-0.5">
+              <span class="h-1.5 w-1.5 rounded-full ${b.status === 'to_read' ? 'bg-sky-400' :
+          b.status === 'active' ? 'bg-emerald-400' :
+            b.status === 'archived' ? 'bg-zinc-500' :
+              'bg-amber-400'
+        }"></span>
+              ${b.status}
+            </span>
+            ${b.isDead ? `
+              <span class="inline-flex items-center gap-1 rounded-full bg-rose-500/10 border border-rose-500/40 px-1.5 py-0.5 text-rose-300">
+                <span class="h-1.5 w-1.5 rounded-full bg-rose-400"></span>
+                Dead
+              </span>
+            ` : ''}
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button
+              type="button"
+              class="inline-flex items-center justify-center h-7 w-7 rounded-lg bg-zinc-900/80 border border-zinc-800 text-zinc-300 hover:bg-zinc-800/90"
+              onclick="window.open('${b.url}', '_blank')"
+              aria-label="Open bookmark"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14 3h7v7M10 14L21 3M5 5h4M5 9h2M5 13h3M5 17h4" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center justify-center h-7 w-7 rounded-lg bg-zinc-900/80 border border-zinc-800 text-zinc-300 hover:bg-zinc-800/90"
+              onclick="editBookmark('${b.id}')"
+              aria-label="Edit bookmark"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.651-1.651a2.121 2.121 0 113 3l-9.193 9.193a3 3 0 01-1.06.664L7 17l1.307-4.26a3 3 0 01.664-1.06l7.891-7.193zM19 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-8a2 2 0 012-2h5" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center justify-center h-7 w-7 rounded-lg bg-zinc-900/80 border border-zinc-800 text-zinc-300 hover:bg-zinc-800/90"
+              onclick="deleteBookmark('${b.id}')"
+              aria-label="Delete bookmark"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 3h6M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      `;
+      return el;
+    }
+
+    function openBookmarkModal(editId) {
+      const overlay = document.getElementById('bookmarkModal');
+      overlay.classList.remove('hidden');
+      overlay.classList.add('flex');
+      favoriteFlag = false;
+
+      const titleEl = document.getElementById('bookmarkModalTitle');
+      const form = document.getElementById('bookmarkForm');
+      form.reset();
+      document.getElementById('bookmarkId').value = '';
+
+      if (editId) {
+        const b = bookmarks.find(x => x.id === editId);
+        if (!b) return;
+        titleEl.textContent = 'Edit Bookmark';
+        document.getElementById('bookmarkId').value = b.id;
+        document.getElementById('bookmarkUrl').value = b.url;
+        document.getElementById('bookmarkTitle').value = b.title || '';
+        document.getElementById('bookmarkNotes').value = b.description || '';
+        document.getElementById('bookmarkTags').value = (b.tags || []).join(', ');
+        document.getElementById('bookmarkType').value = b.type || 'article';
+        document.getElementById('bookmarkStatus').value = b.status || 'to_read';
+
+        const colSelect = document.getElementById('bookmarkCollections');
+        Array.from(colSelect.options).forEach(opt => {
+          opt.selected = b.collections?.includes(opt.value);
+        });
+
+        favoriteFlag = !!(b.favorite || b.status === 'favorite');
+      } else {
+        titleEl.textContent = 'New Bookmark';
+      }
+
+      updateFavoriteButtonUI();
+      document.getElementById('bookmarkUrl').focus();
+    }
+
+    function closeBookmarkModal() {
+      const overlay = document.getElementById('bookmarkModal');
+      overlay.classList.add('hidden');
+      overlay.classList.remove('flex');
+    }
+
+    function editBookmark(id) {
+      openBookmarkModal(id);
+    }
+
+    function toggleFavoriteFlag() {
+      favoriteFlag = !favoriteFlag;
+      updateFavoriteButtonUI();
+    }
+
+    function updateFavoriteButtonUI() {
+      const icon = document.getElementById('bookmarkFavoriteIcon');
+      const label = document.getElementById('bookmarkFavoriteLabel');
+      if (favoriteFlag) {
+        icon.setAttribute('fill', 'currentColor');
+        icon.classList.remove('text-zinc-500');
+        icon.classList.add('text-amber-300');
+        label.textContent = 'Marked as favorite';
+      } else {
+        icon.removeAttribute('fill');
+        icon.classList.remove('text-amber-300');
+        icon.classList.add('text-zinc-500');
+        label.textContent = 'Mark as favorite';
+      }
+    }
+
+    async function submitBookmarkForm(e) {
+      e.preventDefault();
+      const id = document.getElementById('bookmarkId').value || null;
+      const url = document.getElementById('bookmarkUrl').value.trim();
+      const title = document.getElementById('bookmarkTitle').value.trim() || url;
+      const description = document.getElementById('bookmarkNotes').value.trim();
+      const tagsStr = document.getElementById('bookmarkTags').value.trim();
+      const type = document.getElementById('bookmarkType').value;
+      const status = document.getElementById('bookmarkStatus').value;
+
+      const colSelect = document.getElementById('bookmarkCollections');
+      const collections = Array.from(colSelect.selectedOptions).map(o => o.value);
+      const tags = tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(Boolean) : [];
+
+      const payload = {
+        url,
+        title,
+        description,
+        tags,
+        collections,
+        type,
+        status,
+        favorite: favoriteFlag,
+      };
+
+      try {
+        if (id) {
+          const updated = await updateBookmarkApi(id, payload);
+          const idx = bookmarks.findIndex(b => b.id === id);
+          if (idx >= 0) bookmarks[idx] = updated;
+          showToast('Bookmark updated');
+        } else {
+          const created = await createBookmark(payload);
+          bookmarks.push(created);
+          showToast('Bookmark added');
+        }
+        closeBookmarkModal();
+        renderBookmarks();
+      } catch (err) {
+        console.error(err);
+        showToast('Error saving bookmark');
+      }
+    }
+
+    async function deleteBookmark(id) {
+      if (!confirm('Delete this bookmark?')) return;
+      try {
+        await deleteBookmarkApi(id);
+        bookmarks = bookmarks.filter(b => b.id !== id);
+        renderBookmarks();
+        showToast('Bookmark deleted');
+      } catch (err) {
+        console.error(err);
+        showToast('Error deleting bookmark');
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        focusSearch();
+      }
+      if (e.key === 'n' && !document.getElementById('bookmarkModal').classList.contains('flex')) {
+        e.preventDefault();
+        openBookmarkModal();
+      }
+      if (e.key === 'Escape' && document.getElementById('bookmarkModal').classList.contains('flex')) {
+        closeBookmarkModal();
+      }
+      if (e.key === '1') setSmartView('all');
+      if (e.key === '2') setSmartView('to_read');
+      if (e.key === '3') setSmartView('favorites');
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      setSmartView('all');
+      setViewMode('list');
+      fetchBookmarks();
+    });
+  </script>
+</body>
+
+</html>
