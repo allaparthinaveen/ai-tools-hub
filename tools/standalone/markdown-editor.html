@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Editor</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f6f8fa;
+            --bg-hover: #f3f4f6;
+            --border-color: #d0d7de;
+            --border-light: #e5e7eb;
+            --text-primary: #24292f;
+            --text-secondary: #57606a;
+            --text-muted: #8b949e;
+            --accent-primary: #0969da;
+            --accent-hover: #0550ae;
+            --success: #1a7f37;
+            --tab-active: #ffffff;
+        }
+
+        :root.dark-theme {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-hover: #21262d;
+            --border-color: #30363d;
+            --border-light: #21262d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --text-muted: #484f58;
+            --accent-primary: #2f81f7;
+            --accent-hover: #388bfd;
+            --success: #238636;
+            --tab-active: #0d1117;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        .header {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.875rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .logo i {
+            color: var(--accent-primary);
+        }
+
+        button {
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            padding: 0.625rem 1.25rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        button:hover {
+            background: var(--accent-hover);
+        }
+
+        button.secondary {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        button.secondary:hover {
+            background: var(--bg-hover);
+        }
+
+        button.success {
+            background: var(--success);
+        }
+
+        button.icon-only {
+            padding: 0.4rem;
+            background: transparent;
+            color: var(--text-secondary);
+            min-width: 28px;
+            border: 1px solid transparent;
+        }
+
+        button.icon-only:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 0.75rem;
+            margin-left: auto;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            width: 280px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .sidebar.collapsed {
+            width: 1px;
+            background: var(--border-light);
+        }
+
+        .sidebar.collapsed>*:not(.toggle-btn) {
+            display: none;
+        }
+
+        .sidebar-header {
+            padding: 0.875rem 1rem;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-title {
+            font-size: 0.6875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .file-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.25rem 0;
+        }
+
+        .folder-section {
+            margin-bottom: 1px;
+        }
+
+        .folder-header {
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            user-select: none;
+        }
+
+        .folder-header:hover {
+            background: var(--bg-hover);
+        }
+
+        .folder-header i.fa-chevron-right {
+            font-size: 0.625rem;
+            color: var(--text-secondary);
+            transition: transform 0.2s;
+        }
+
+        .folder-header.expanded i.fa-chevron-right {
+            transform: rotate(90deg);
+        }
+
+        .folder-header .folder-name {
+            flex: 1;
+        }
+
+        .folder-actions {
+            display: none;
+        }
+
+        .folder-header:hover .folder-actions {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .folder-content {
+            display: none;
+        }
+
+        .folder-content.expanded {
+            display: block;
+        }
+
+        .tree-item {
+            padding: 0.3rem 0.75rem;
+            padding-left: calc(0.75rem + var(--depth) * 16px);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8125rem;
+            user-select: none;
+        }
+
+        .tree-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .tree-item.active {
+            background: rgba(9, 105, 218, 0.08);
+            color: var(--accent-primary);
+            font-weight: 500;
+        }
+
+        .tree-item i.fa-chevron-right {
+            width: 16px;
+            font-size: 0.625rem;
+            color: var(--text-secondary);
+            transition: transform 0.2s;
+        }
+
+        .tree-item.expanded>i.fa-chevron-right {
+            transform: rotate(90deg);
+        }
+
+        .tree-item i.tree-icon {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .tree-item.file i.fa-chevron-right {
+            visibility: hidden;
+        }
+
+        .toggle-btn {
+            position: absolute;
+            right: -10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            width: 20px;
+            height: 40px;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            font-size: 0.625rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            padding: 0;
+        }
+
+        .toggle-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .sidebar.collapsed .toggle-btn {
+            right: -20px;
+            border-radius: 4px;
+        }
+
+        .content-area {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .editor-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-light);
+            position: relative;
+            min-width: 0;
+        }
+
+        .editor-wrapper.collapsed {
+            width: 1px;
+            flex: 0;
+            background: var(--border-light);
+        }
+
+        .editor-wrapper.collapsed>*:not(.toggle-btn) {
+            display: none;
+        }
+
+        .tabs-container {
+            display: flex;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-light);
+            min-height: 36px;
+        }
+
+        .tabs-scroll-area {
+            display: flex;
+            flex: 1;
+            overflow-x: auto;
+        }
+
+        .tabs-scroll-area::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .tabs-scroll-area::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+
+        .tabs-scroll-area::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .tabs-list {
+            display: flex;
+            min-width: max-content;
+        }
+
+        .tab {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-light);
+            cursor: pointer;
+            font-size: 0.8125rem;
+            white-space: nowrap;
+            min-width: 100px;
+            max-width: 200px;
+        }
+
+        .tab:hover {
+            background: var(--bg-hover);
+        }
+
+        .tab.active {
+            background: var(--tab-active);
+            border-bottom: 2px solid var(--accent-primary);
+        }
+
+        .tab i.tab-icon {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .tab-label {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .tab-close {
+            padding: 0.125rem;
+            color: var(--text-secondary);
+            opacity: 0;
+        }
+
+        .tab:hover .tab-close,
+        .tab.active .tab-close {
+            opacity: 1;
+        }
+
+        .tab-close:hover {
+            color: var(--text-primary);
+        }
+
+        .tab-new {
+            padding: 0.5rem 0.75rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            min-width: 36px;
+        }
+
+        .tab-new:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .editor-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .line-numbers {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-light);
+            padding: 1.25rem 0.5rem;
+            text-align: right;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            user-select: none;
+            min-width: 50px;
+            line-height: 1.6;
+            overflow: hidden;
+        }
+
+        #editor {
+            flex: 1;
+            padding: 1.25rem 1.5rem;
+            border: none;
+            resize: none;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8125rem;
+            line-height: 1.6;
+            outline: none;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-y: auto;
+        }
+
+        .preview-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pane-header {
+            padding: 0.625rem 1rem;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-light);
+            font-size: 0.8125rem;
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pane-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .preview-content {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            line-height: 1.7;
+        }
+
+        .preview-content h1 {
+            font-size: 2rem;
+            margin: 1.5rem 0 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.3rem;
+        }
+
+        .preview-content h2 {
+            font-size: 1.5rem;
+            margin: 1.5rem 0 0.75rem;
+        }
+
+        .preview-content h3 {
+            font-size: 1.25rem;
+            margin: 1.5rem 0 0.75rem;
+        }
+
+        .preview-content p {
+            margin-bottom: 1rem;
+        }
+
+        .preview-content code {
+            background: var(--bg-secondary);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            color: #cf222e;
+        }
+
+        .preview-content pre {
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .preview-content pre code {
+            background: none;
+            color: var(--text-primary);
+        }
+
+        .preview-content ul,
+        .preview-content ol {
+            margin-left: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .resizer {
+            width: 1px;
+            background: var(--border-light);
+            cursor: col-resize;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 5;
+        }
+
+        .resizer::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: -2px;
+            right: -2px;
+            cursor: col-resize;
+        }
+
+        .resizer:hover {
+            background: var(--accent-primary);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--bg-primary);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            border: 1px solid var(--border-color);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.success {
+            border-left: 3px solid var(--success);
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 5px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="logo">
+            <i class="fa-solid fa-file-lines"></i>
+            <span>Markdown Editor</span>
+        </div>
+        <div class="toolbar">
+            <button id="themeToggleBtn" class="icon-only" style="color: var(--text-primary); margin-right: 0.5rem;" onclick="toggleTheme()" title="Toggle Theme">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+            <button onclick="saveFile()" class="success">
+                <i class="fa-solid fa-floppy-disk"></i> Save
+            </button>
+            <button onclick="downloadFile()" class="secondary">
+                <i class="fa-solid fa-download"></i> Download
+            </button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">Explorer</span>
+                <div style="display: flex; gap: 0.25rem;">
+                    <button class="icon-only" onclick="refreshFolders()" title="Refresh Folders">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                    <button class="icon-only" onclick="openFolder()" title="Open Folder">
+                        <i class="fa-solid fa-folder-open"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="file-tree" id="fileTree"></div>
+            <button class="toggle-btn" onclick="toggleSidebar()">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+        </div>
+        <div class="resizer" id="sidebarResizer"></div>
+
+        <div class="content-area">
+            <div class="editor-wrapper" id="editorWrapper">
+                <div class="tabs-container">
+                    <div class="tabs-scroll-area" id="tabsScrollArea">
+                        <div class="tabs-list" id="tabsList"></div>
+                    </div>
+                    <button class="tab-new" onclick="newFile()" title="New File">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+                <div class="editor-container">
+                    <div class="line-numbers" id="lineNumbers"></div>
+                    <textarea id="editor" placeholder="Start typing..." spellcheck="false"></textarea>
+                </div>
+                <button class="toggle-btn" onclick="toggleEditor()" style="right: -10px;">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+            </div>
+
+            <div class="resizer" id="resizer"></div>
+
+            <div class="preview-wrapper">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <i class="fa-solid fa-eye"></i>
+                        <span>Preview</span>
+                    </div>
+                </div>
+                <div class="preview-content" id="preview">
+                    <h1>Welcome! 👋</h1>
+                    <p>Click <strong>Open Folder</strong> to load your markdown files, or use the <strong>+</strong>
+                        button to create a new file.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // --- THEME MANAGEMENT ---
+        const root = document.documentElement;
+        
+        function toggleTheme() {
+            root.classList.toggle('dark-theme');
+            const isDark = root.classList.contains('dark-theme');
+            localStorage.setItem('mdEditorTheme', isDark ? 'dark' : 'light');
+            updateThemeIcon(isDark);
+        }
+
+        function updateThemeIcon(isDark) {
+            const btn = document.getElementById('themeToggleBtn');
+            if (btn) {
+                btn.innerHTML = isDark ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+            }
+        }
+        
+        const savedTheme = localStorage.getItem('mdEditorTheme');
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isDarkTheme = savedTheme === 'dark' || (!savedTheme && prefersDark);
+        if (isDarkTheme) {
+            root.classList.add('dark-theme');
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            updateThemeIcon(isDarkTheme);
+        });
+        // -----------------------
+
+        // Use IndexedDB to store directory handles for persistence across reloads
+        const dbName = 'MdEditorDB';
+        const storeName = 'handles';
+        let db;
+
+        const initDB = () => new Promise((resolve, reject) => {
+            const request = indexedDB.open(dbName, 2);
+            request.onerror = () => {
+                console.error("IndexedDB blocked or errored:", request.error);
+                reject(request.error);
+            };
+            request.onsuccess = () => {
+                db = request.result;
+                resolve();
+            };
+            request.onupgradeneeded = (e) => {
+                db = e.target.result;
+                if (db.objectStoreNames.contains(storeName)) {
+                    db.deleteObjectStore(storeName);
+                }
+                db.createObjectStore(storeName, { keyPath: 'id' });
+            };
+        });
+
+        const saveHandle = (name, handle) => new Promise((resolve, reject) => {
+            if (!db) return resolve();
+            try {
+                const tx = db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
+                store.put({ id: name, handle: handle });
+                tx.oncomplete = resolve;
+                tx.onerror = () => {
+                    console.error("Save handle error:", tx.error);
+                    reject(tx.error);
+                };
+            } catch (err) {
+                console.error("Failed to start save handle tx:", err);
+                resolve();
+            }
+        });
+
+        const getHandle = (name) => new Promise((resolve, reject) => {
+            if (!db) return resolve(null);
+            try {
+                const tx = db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const request = store.get(name);
+                request.onsuccess = () => resolve(request.result ? request.result.handle : null);
+                request.onerror = () => {
+                    console.error("Get handle error:", request.error);
+                    reject(request.error);
+                };
+            } catch (err) {
+                console.error("Failed to start get handle tx:", err);
+                resolve(null);
+            }
+        });
+
+        let folders = [];
+        let tabs = [];
+        let activeTab = null;
+        let sidebarCollapsed = false;
+        let editorCollapsed = false;
+
+        async function init() {
+            try {
+                await initDB();
+            } catch (e) {
+                console.warn("IndexedDB not available for storing handles", e);
+            }
+
+            const saved = localStorage.getItem('mdEditor');
+            if (saved) {
+                const data = JSON.parse(saved);
+
+                // Folders don't strictly need their handles immediately until refresh
+                folders = data.folders || [];
+
+                // Filter out tabs without a valid path format and fix serialization
+                tabs = (data.tabs || []).map(t => ({
+                    id: t.id,
+                    folderIndex: t.folderIndex,
+                    path: t.path,
+                    name: t.name,
+                    content: t.content || '',
+                    modified: t.modified || false
+                }));
+                activeTab = data.activeTab ? tabs.find(t => t.id === data.activeTab.id) : null;
+            }
+
+            renderFolders();
+            renderTabs();
+            if (activeTab) loadTab(activeTab);
+
+            document.getElementById('editor').addEventListener('input', onEdit);
+            document.addEventListener('keydown', e => {
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                    e.preventDefault();
+                    saveFile();
+                }
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+                    e.preventDefault();
+                    newFile();
+                }
+            });
+
+            setupResizer();
+
+            // Auto-refresh workspace contents silently
+            setTimeout(() => {
+                if (folders.length > 0) refreshFolders(true);
+            }, 500);
+        }
+
+        function renderFolders() {
+            const tree = document.getElementById('fileTree');
+            tree.innerHTML = '';
+
+            folders.forEach((folder, fi) => {
+                const section = document.createElement('div');
+                section.className = 'folder-section';
+
+                const header = document.createElement('div');
+                header.className = 'folder-header' + (folder.expanded ? ' expanded' : '');
+                header.innerHTML = `
+                    <i class="fa-solid fa-chevron-right"></i>
+                    <i class="fa-solid fa-folder tree-icon"></i>
+                    <span class="folder-name">${folder.name}</span>
+                    <div class="folder-actions">
+                        <button class="icon-only" onclick="newFileInFolder(${fi}); event.stopPropagation();" title="New File">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                        <button class="icon-only" onclick="removeFolderFromWorkspace(${fi}); event.stopPropagation();" title="Remove from Workspace">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                header.onclick = () => toggleFolder(fi);
+                section.appendChild(header);
+
+                const content = document.createElement('div');
+                content.className = 'folder-content' + (folder.expanded ? ' expanded' : '');
+                renderTree(folder.items, content, fi, 0);
+                section.appendChild(content);
+
+                tree.appendChild(section);
+            });
+        }
+
+        function renderTree(items, container, folderIndex, depth) {
+            items.forEach((item, index) => {
+                const el = document.createElement('div');
+                el.className = 'tree-item' + (item.type === 'file' ? ' file' : '');
+                if (item.expanded) el.classList.add('expanded');
+                if (item.type === 'file' && activeTab && activeTab.folderIndex === folderIndex && activeTab.path === item.path) {
+                    el.classList.add('active');
+                }
+                el.style.setProperty('--depth', depth);
+
+                const icon = item.type === 'folder' ? 'fa-folder' : 'fa-file-lines';
+                const displayName = item.type === 'file' ? item.name.replace(/\.md$/i, '') : item.name;
+                el.innerHTML = `
+                    <i class="fa-solid fa-chevron-right"></i>
+                    <i class="fa-solid ${icon} tree-icon"></i>
+                    <span title="${item.name}">${displayName}</span>
+                `;
+
+                el.onclick = (e) => {
+                    e.stopPropagation();
+                    if (item.type === 'folder') {
+                        item.expanded = !item.expanded;
+                        save();
+                        renderFolders();
+                    } else {
+                        openFile(folderIndex, item.path, item.name, item.content);
+                    }
+                };
+
+                container.appendChild(el);
+
+                if (item.type === 'folder' && item.expanded && item.children) {
+                    renderTree(item.children, container, folderIndex, depth + 1);
+                }
+            });
+        }
+
+        function toggleFolder(index) {
+            folders[index].expanded = !folders[index].expanded;
+            save();
+            renderFolders();
+        }
+
+        function newFileInFolder(folderIndex) {
+            const fileName = getNewFileName();
+
+            const file = {
+                name: fileName,
+                type: 'file',
+                path: fileName,
+                content: ''
+            };
+
+            // Add file to folder items
+            if (!folders[folderIndex].items) {
+                folders[folderIndex].items = [];
+            }
+
+            folders[folderIndex].items.push(file);
+            folders[folderIndex].expanded = true;
+
+            save();
+            renderFolders(); // This will show the new file immediately
+            openFile(folderIndex, file.path, file.name, file.content);
+            toast(`Created: ${file.name.replace(/\.md$/i, '')}`);
+
+            // Focus editor
+            setTimeout(() => document.getElementById('editor').focus(), 10);
+        }
+
+        function removeFolderFromWorkspace(index) {
+            const folder = folders[index];
+            if (!confirm(`Remove "${folder.name}" from workspace?`)) return;
+
+            // Close all tabs belonging to this folder
+            tabs = tabs.filter(t => t.folderIndex !== index);
+
+            // Adjust folderIndex for remaining tabs if they come after the removed one
+            tabs.forEach(t => {
+                if (t.folderIndex !== undefined && t.folderIndex > index) {
+                    t.folderIndex--;
+                }
+            });
+
+            // Update active tab if it was removed
+            if (activeTab && activeTab.folderIndex === index) {
+                activeTab = tabs[0] || null;
+            }
+
+            // Remove the folder
+            folders.splice(index, 1);
+
+            save();
+            renderFolders();
+            renderTabs();
+
+            if (activeTab) {
+                loadTab(activeTab);
+            } else {
+                document.getElementById('editor').value = '';
+                updatePreview();
+                document.getElementById('lineNumbers').innerHTML = '';
+            }
+
+            toast(`Removed ${folder.name} from workspace`);
+        }
+
+        function openFile(folderIndex, path, name, content) {
+            const existing = tabs.find(t => t.folderIndex === folderIndex && t.path === path);
+            if (existing) {
+                activeTab = existing;
+            } else {
+                const tab = { id: Date.now(), folderIndex, path, name, content, modified: false };
+                tabs.push(tab);
+                activeTab = tab;
+            }
+            save();
+            renderFolders();
+            renderTabs();
+            loadTab(activeTab);
+        }
+
+        function renderTabs() {
+            const list = document.getElementById('tabsList');
+            list.innerHTML = '';
+
+            tabs.forEach(tab => {
+                const el = document.createElement('div');
+                el.className = 'tab' + (tab === activeTab ? ' active' : '');
+                const displayName = tab.name.replace(/\.md$/i, '');
+                el.innerHTML = `
+                    <i class="fa-solid fa-file-lines tab-icon"></i>
+                    <span class="tab-label" ondblclick="renameTab(event, ${tab.id})" title="Double-click to rename">${displayName}${tab.modified ? ' •' : ''}</span>
+                    <i class="fa-solid fa-xmark tab-close"></i>
+                `;
+                el.onclick = () => {
+                    activeTab = tab;
+                    save();
+                    renderFolders();
+                    renderTabs();
+                    loadTab(tab);
+                };
+                el.querySelector('.tab-close').onclick = (e) => {
+                    e.stopPropagation();
+                    closeTab(tab);
+                };
+                list.appendChild(el);
+            });
+        }
+
+        function closeTab(tab) {
+            if (tab.modified && !confirm(`Close ${tab.name}? Unsaved changes will be lost.`)) return;
+
+            const index = tabs.indexOf(tab);
+            tabs.splice(index, 1);
+
+            if (activeTab === tab) {
+                activeTab = tabs[0] || null;
+            }
+
+            save();
+            renderTabs();
+            renderFolders();
+            if (activeTab) loadTab(activeTab);
+            else {
+                document.getElementById('editor').value = '';
+                updatePreview();
+            }
+        }
+
+        function loadTab(tab) {
+            document.getElementById('editor').value = tab.content;
+            updatePreview();
+            updateLineNumbers();
+
+            // Auto scroll to active tab
+            setTimeout(() => {
+                const activeEl = document.querySelector('.tab.active');
+                if (activeEl) {
+                    activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+                }
+            }, 10);
+        }
+
+        function onEdit() {
+            if (!activeTab) return;
+
+            activeTab.content = document.getElementById('editor').value;
+            activeTab.modified = true;
+
+            // Update in folder structure
+            if (activeTab.folderIndex !== undefined) {
+                const folder = folders[activeTab.folderIndex];
+                const findAndUpdate = (items) => {
+                    for (let item of items) {
+                        if (item.type === 'file' && item.path === activeTab.path) {
+                            item.content = activeTab.content;
+                            return true;
+                        }
+                        if (item.type === 'folder' && item.children) {
+                            if (findAndUpdate(item.children)) return true;
+                        }
+                    }
+                    return false;
+                };
+                findAndUpdate(folder.items);
+            }
+
+            updatePreview();
+            updateLineNumbers();
+            renderTabs();
+        }
+
+        function updatePreview() {
+            const md = document.getElementById('editor').value;
+            document.getElementById('preview').innerHTML = md ? marked.parse(md) : '<p>Start typing to see preview...</p>';
+        }
+
+        function updateLineNumbers() {
+            const lines = document.getElementById('editor').value.split('\n').length;
+            let html = '';
+            for (let i = 1; i <= lines; i++) {
+                html += `<div>${i}</div>`;
+            }
+            document.getElementById('lineNumbers').innerHTML = html;
+        }
+
+        function getNewFileName() {
+            const getNames = () => {
+                const names = new Set();
+                tabs.forEach(t => names.add(t.name.replace(/\.md$/i, '')));
+                const traverse = (items) => {
+                    items.forEach(item => {
+                        if (item.type === 'file') names.add(item.name.replace(/\.md$/i, ''));
+                        else if (item.children) traverse(item.children);
+                    });
+                };
+                folders.forEach(f => traverse(f.items || []));
+                return names;
+            };
+            const existingNames = getNames();
+            let name = 'untitled';
+            let i = 1;
+            while (existingNames.has(name)) {
+                name = `untitled ${i}`;
+                i++;
+            }
+            return name + '.md';
+        }
+
+        function renameTab(e, tabId) {
+            e.stopPropagation();
+            const tab = tabs.find(t => t.id === tabId);
+            if (!tab) return;
+
+            const span = e.target;
+            const originalName = tab.name;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = originalName.replace(/\.md$/, '');
+            input.style.width = Math.max(60, input.value.length * 8 + 20) + 'px';
+            input.style.border = '1px solid var(--accent-primary)';
+            input.style.outline = 'none';
+            input.style.padding = '0 4px';
+            input.style.borderRadius = '3px';
+            input.style.fontFamily = 'inherit';
+            input.style.fontSize = 'inherit';
+            input.style.background = 'var(--bg-primary)';
+            input.style.color = 'var(--text-primary)';
+
+            span.parentNode.replaceChild(input, span);
+            input.focus();
+            input.select();
+
+            let finished = false;
+            const finishRename = () => {
+                if (finished) return;
+                finished = true;
+                let newVal = input.value.trim();
+
+                if (newVal && newVal.toLowerCase() !== originalName.replace(/\.md$/i, '').toLowerCase()) {
+                    if (!newVal.toLowerCase().endsWith('.md')) newVal += '.md';
+
+                    if (tab.folderIndex !== undefined) {
+                        const folder = folders[tab.folderIndex];
+                        const findAndRename = (items) => {
+                            for (let item of items) {
+                                if (item.type === 'file' && item.path === tab.path) {
+                                    item.name = newVal;
+                                    if (item.path) {
+                                        const pathParts = item.path.split('/');
+                                        pathParts.pop();
+                                        pathParts.push(newVal);
+                                        item.path = pathParts.join('/');
+                                    } else {
+                                        item.path = newVal;
+                                    }
+                                    return item.path;
+                                }
+                                if (item.type === 'folder' && item.children) {
+                                    const newPath = findAndRename(item.children);
+                                    if (newPath) return newPath;
+                                }
+                            }
+                            return null;
+                        };
+                        const findAndUpdateActiveTabPath = () => {
+                            const newPath = findAndRename(folder.items);
+                            if (newPath) tab.path = newPath;
+                        }
+                        findAndUpdateActiveTabPath();
+                    }
+
+                    tab.name = newVal;
+                    save();
+                }
+                renderTabs();
+                renderFolders();
+            };
+
+            input.onblur = finishRename;
+            input.onkeydown = (ev) => {
+                if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    finishRename();
+                } else if (ev.key === 'Escape') {
+                    finished = true;
+                    renderTabs();
+                }
+            };
+        }
+
+        function newFile() {
+            const name = getNewFileName();
+
+            const tab = {
+                id: Date.now(),
+                name: name,
+                content: '',
+                modified: false
+            };
+
+            tabs.push(tab);
+            activeTab = tab;
+            save();
+            renderTabs();
+            loadTab(tab);
+            toast(`Created: ${tab.name.replace(/\.md$/i, '')}`);
+
+            // Focus editor
+            setTimeout(() => document.getElementById('editor').focus(), 10);
+        }
+
+        function saveFile() {
+            if (!activeTab) {
+                toast('No file open', 'error');
+                return;
+            }
+
+            activeTab.modified = false;
+            save();
+            renderTabs();
+            toast(`Saved: ${activeTab.name.replace(/\.md$/i, '')}`);
+        }
+
+        function downloadFile() {
+            if (!activeTab) {
+                toast('No file open', 'error');
+                return;
+            }
+
+            const blob = new Blob([activeTab.content], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = activeTab.name;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast(`Downloaded: ${activeTab.name.replace(/\.md$/i, '')}`);
+        }
+
+        async function openFolder() {
+            if (!window.showDirectoryPicker) {
+                toast('File System API not supported in this browser. Please use Chrome/Edge.', 'error');
+                return;
+            }
+
+            try {
+                const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                await processDirectoryHandle(dirHandle);
+            } catch (e) {
+                if (e.name !== 'AbortError') {
+                    console.error(e);
+                    toast('Failed to open folder', 'error');
+                }
+            }
+        }
+
+        async function processDirectoryHandle(dirHandle, silent = false) {
+            const folderName = dirHandle.name;
+
+            // Save handle to IndexedDB for automatic reloads later
+            await saveHandle(folderName, dirHandle);
+
+            // Check if folder already exists
+            const existingIndex = folders.findIndex(f => f.name === folderName);
+            const structure = { name: folderName, expanded: true, items: [] };
+
+            const buildTree = async (handle, path = []) => {
+                const items = [];
+                for await (const entry of handle.values()) {
+                    const currentPath = [...path, entry.name].join('/');
+                    if (entry.kind === 'file') {
+                        if (entry.name.match(/\.(md|txt)$/i)) {
+                            const file = await entry.getFile();
+                            const content = await file.text();
+
+                            items.push({
+                                name: entry.name,
+                                type: 'file',
+                                path: currentPath,
+                                content: content,
+                                handle: entry
+                            });
+                        }
+                    } else if (entry.kind === 'directory' && !entry.name.startsWith('.')) {
+                        items.push({
+                            name: entry.name,
+                            type: 'folder',
+                            path: currentPath,
+                            expanded: false,
+                            children: await buildTree(entry, [...path, entry.name]),
+                            handle: entry
+                        });
+                    }
+                }
+
+                // Sort folders first, then files
+                items.sort((a, b) => {
+                    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+                    return a.name.localeCompare(b.name);
+                });
+
+                return items;
+            };
+
+            if (!silent) toast(`Scanning ${folderName}...`);
+            structure.items = await buildTree(dirHandle);
+
+            // Update existing or add new
+            if (existingIndex >= 0) {
+                // Preserve expansion state
+                const preserveState = (oldItems, newItems) => {
+                    for (const newItem of newItems) {
+                        if (newItem.type === 'folder') {
+                            const oldItem = oldItems.find(i => i.name === newItem.name && i.type === 'folder');
+                            if (oldItem) {
+                                newItem.expanded = oldItem.expanded;
+                                if (oldItem.children && newItem.children) {
+                                    preserveState(oldItem.children, newItem.children);
+                                }
+                            }
+                        }
+                    }
+                };
+                preserveState(folders[existingIndex].items, structure.items);
+                folders[existingIndex] = structure;
+            } else {
+                folders.push(structure);
+            }
+
+            // Update open tabs with latest content
+            for (let tab of tabs) {
+                if (tab.folderIndex === existingIndex || (existingIndex === -1 && tab.folderIndex === folders.length - 1)) {
+                    const findContent = (items) => {
+                        for (let item of items) {
+                            if (item.type === 'file' && item.path === tab.path) return item.content;
+                            if (item.type === 'folder' && item.children) {
+                                const c = findContent(item.children);
+                                if (c !== undefined) return c;
+                            }
+                        }
+                        return undefined;
+                    };
+
+                    const latestContent = findContent(structure.items);
+                    if (latestContent !== undefined && !tab.modified) {
+                        tab.content = latestContent;
+                    }
+                }
+            }
+
+            if (activeTab && !activeTab.modified) {
+                const activeFolder = existingIndex >= 0 ? existingIndex : folders.length - 1;
+                if (activeTab.folderIndex === activeFolder) {
+                    document.getElementById('editor').value = activeTab.content;
+                    updatePreview();
+                }
+            }
+
+            save();
+            renderFolders();
+            if (!silent) toast(`Synced: ${folderName}`);
+        }
+
+        async function refreshFolders(silent = false) {
+            if (folders.length === 0) {
+                if (!silent) toast('No folders to sync. Open a folder first.', 'error');
+                return;
+            }
+
+            if (!silent) toast('Syncing workspace...');
+
+            for (const folder of folders) {
+                try {
+                    const handle = await getHandle(folder.name);
+                    if (handle) {
+                        // Request permission if needed
+                        const options = { mode: 'read' };
+                        if ((await handle.queryPermission(options)) !== 'granted') {
+                            if (silent) continue; // Skip permission prompts during automatic background sync
+
+                            // This will show a browser native "Allow access" prompt, not a file picker
+                            const permission = await handle.requestPermission(options);
+                            if (permission !== 'granted') {
+                                if (!silent) toast(`Permission denied to sync ${folder.name}`, 'error');
+                                continue;
+                            }
+                        }
+                        await processDirectoryHandle(handle, silent);
+                    } else {
+                        if (!silent) toast(`Could not sync ${folder.name}, handle lost. Please reopen it via the folder icon.`, 'error');
+                    }
+                } catch (e) {
+                    console.error("Failed to sync folder:", e);
+                    if (!silent) toast(`Failed to sync ${folder.name}`, 'error');
+                }
+            }
+        }
+
+        function save() {
+            // Strip out FileSystemHandles before saving to localStorage
+            const secureFolders = folders.map(f => {
+                const mapItems = (items) => items.map(item => {
+                    const cleanItem = { ...item };
+                    delete cleanItem.handle;
+                    if (cleanItem.children) cleanItem.children = mapItems(cleanItem.children);
+                    return cleanItem;
+                });
+                return {
+                    name: f.name,
+                    expanded: f.expanded,
+                    items: mapItems(f.items || [])
+                };
+            });
+
+            localStorage.setItem('mdEditor', JSON.stringify({
+                folders: secureFolders,
+                tabs,
+                activeTab
+            }));
+        }
+
+        function toggleSidebar() {
+            sidebarCollapsed = !sidebarCollapsed;
+            const sidebar = document.getElementById('sidebar');
+            const btn = sidebar.querySelector('.toggle-btn');
+
+            sidebar.classList.toggle('collapsed');
+            btn.innerHTML = sidebarCollapsed ?
+                '<i class="fa-solid fa-chevron-right"></i>' :
+                '<i class="fa-solid fa-chevron-left"></i>';
+            btn.style.right = sidebarCollapsed ? '-20px' : '-10px';
+            btn.style.borderRadius = sidebarCollapsed ? '4px' : '0 4px 4px 0';
+        }
+
+        function toggleEditor() {
+            editorCollapsed = !editorCollapsed;
+            const wrapper = document.getElementById('editorWrapper');
+            const btn = wrapper.querySelector('.toggle-btn');
+            const resizer = document.getElementById('resizer');
+
+            wrapper.classList.toggle('collapsed');
+            btn.innerHTML = editorCollapsed ?
+                '<i class="fa-solid fa-chevron-right"></i>' :
+                '<i class="fa-solid fa-chevron-left"></i>';
+            btn.style.right = editorCollapsed ? '-20px' : '-10px';
+            btn.style.borderRadius = editorCollapsed ? '4px' : '0 4px 4px 0';
+            resizer.style.display = editorCollapsed ? 'none' : 'block';
+        }
+
+        function setupResizer() {
+            // Editor / Preview Resizer
+            const resizer = document.getElementById('resizer');
+            const editor = document.getElementById('editorWrapper');
+            const preview = document.querySelector('.preview-wrapper');
+            let isResizing = false;
+
+            resizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+
+                const container = document.querySelector('.content-area');
+                const containerRect = container.getBoundingClientRect();
+                const offsetX = e.clientX - containerRect.left;
+                const percentage = (offsetX / containerRect.width) * 100;
+
+                if (percentage > 20 && percentage < 80) {
+                    editor.style.flex = `0 0 ${percentage}%`;
+                    preview.style.flex = `0 0 ${100 - percentage}%`;
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isResizing = false;
+            });
+
+            // Sidebar Resizer
+            const sidebarResizer = document.getElementById('sidebarResizer');
+            const sidebar = document.getElementById('sidebar');
+            let isSidebarResizing = false;
+
+            sidebarResizer.addEventListener('mousedown', (e) => {
+                if (sidebarCollapsed) return;
+                isSidebarResizing = true;
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isSidebarResizing) return;
+                const newWidth = Math.max(150, Math.min(e.clientX, document.body.clientWidth - 400));
+                sidebar.style.width = newWidth + 'px';
+            });
+
+            document.addEventListener('mouseup', () => {
+                isSidebarResizing = false;
+            });
+        }
+
+        function toast(msg, type = 'success') {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.className = `toast ${type}`;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 3000);
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
