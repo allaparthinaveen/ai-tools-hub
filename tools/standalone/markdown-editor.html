@@ -885,6 +885,27 @@
             }, 500);
         }
 
+        function getFileIconInfo(filename, type, expanded) {
+            if (type === 'folder') {
+                return { class: expanded ? 'fa-regular fa-folder-open' : 'fa-solid fa-folder', color: '#dcb67a' };
+            }
+            if (filename.toLowerCase().startsWith('readme')) return { class: 'fa-solid fa-book-open', color: '#0969da' };
+            
+            const ext = filename.split('.').pop().toLowerCase();
+            switch (ext) {
+                case 'md': return { class: 'fa-brands fa-markdown', color: '#0969da' };
+                case 'py': return { class: 'fa-brands fa-python', color: '#3572A5' };
+                case 'js': case 'jsx': return { class: 'fa-brands fa-js', color: '#f7df1e' };
+                case 'html': return { class: 'fa-brands fa-html5', color: '#e34c26' };
+                case 'json': return { class: 'fa-solid fa-code', color: '#29b6f6' };
+                case 'txt': return { class: 'fa-regular fa-file-lines', color: '#8b949e' };
+                case 'yml': case 'yaml': return { class: 'fa-solid fa-cube', color: '#cb171e' };
+                case 'sh': return { class: 'fa-solid fa-terminal', color: '#4ebd64' };
+                case 'csv': return { class: 'fa-solid fa-file-csv', color: '#2ea44f' };
+                default: return { class: 'fa-regular fa-file', color: '#8b949e' };
+            }
+        }
+
         function renderFolders() {
             const tree = document.getElementById('fileTree');
             tree.innerHTML = '';
@@ -895,9 +916,12 @@
 
                 const header = document.createElement('div');
                 header.className = 'folder-header' + (folder.expanded ? ' expanded' : '');
+                
+                const folderIconInfo = getFileIconInfo(folder.name, 'folder', folder.expanded);
+                
                 header.innerHTML = `
                     <i class="fa-solid fa-chevron-right"></i>
-                    <i class="fa-solid fa-folder tree-icon"></i>
+                    <i class="${folderIconInfo.class} tree-icon" style="color: ${folderIconInfo.color};"></i>
                     <span class="folder-name">${folder.name}</span>
                     <div class="folder-actions">
                         <button class="icon-only" onclick="newFileInFolder(${fi}); event.stopPropagation();" title="New File">
@@ -930,11 +954,11 @@
                 }
                 el.style.setProperty('--depth', depth);
 
-                const icon = item.type === 'folder' ? 'fa-folder' : 'fa-file-lines';
+                const iconInfo = getFileIconInfo(item.name, item.type, item.expanded);
                 const displayName = item.type === 'file' ? item.name.replace(/\.md$/i, '') : item.name;
                 el.innerHTML = `
                     <i class="fa-solid fa-chevron-right"></i>
-                    <i class="fa-solid ${icon} tree-icon"></i>
+                    <i class="${iconInfo.class} tree-icon" style="color: ${iconInfo.color};"></i>
                     <span title="${item.name}">${displayName}</span>
                 `;
 
