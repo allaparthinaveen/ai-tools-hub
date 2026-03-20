@@ -486,6 +486,7 @@
             line-height: 1.6;
             font-family: 'Consolas', monospace;
             font-size: 0.825rem;
+            color: #121278;
         }
 
         .preview-content h1 {
@@ -493,7 +494,7 @@
             margin: 1.5rem 0 0.75rem;
             border-bottom: 2px solid var(--border-light);
             padding-bottom: 0.3rem;
-            color: var(--accent-hover);
+            color: #1b6309;
         }
 
         .dark-theme .preview-content h1 {
@@ -890,7 +891,7 @@
                 return { class: expanded ? 'fa-regular fa-folder-open' : 'fa-solid fa-folder', color: '#dcb67a' };
             }
             if (filename.toLowerCase().startsWith('readme')) return { class: 'fa-solid fa-book-open', color: '#0969da' };
-            
+
             const ext = filename.split('.').pop().toLowerCase();
             switch (ext) {
                 case 'md': return { class: 'fa-brands fa-markdown', color: '#0969da' };
@@ -916,9 +917,9 @@
 
                 const header = document.createElement('div');
                 header.className = 'folder-header' + (folder.expanded ? ' expanded' : '');
-                
+
                 const folderIconInfo = getFileIconInfo(folder.name, 'folder', folder.expanded);
-                
+
                 header.innerHTML = `
                     <i class="fa-solid fa-chevron-right"></i>
                     <i class="${folderIconInfo.class} tree-icon" style="color: ${folderIconInfo.color};"></i>
