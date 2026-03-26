@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Idea Repository | Bento Grid Innovation Hub</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="logo">
+                    <span class="logo-icon">💡</span>
+                    Idea Repository
+                </h1>
+                <p class="tagline">Where great ideas take shape</p>
+            </div>
+            <button id="themeToggleBtn" class="theme-toggle" title="Toggle theme" aria-label="Toggle theme">
+                <span class="theme-icon">🌙</span>
+            </button>
+        </header>
+
+        <!-- Search Bar -->
+        <div class="search-container">
+            <div class="search-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" placeholder="Search ideas by title, description, or tags..."
+                    class="search-input">
+                <button id="clearSearch" class="clear-search" style="display: none;">✕</button>
+            </div>
+        </div>
+
+        <!-- Category Filter Bar -->
+        <div class="filter-section">
+            <div class="filter-wrapper">
+                <button class="filter-btn active" data-category="all">All Ideas</button>
+                <button class="filter-btn" data-category="Stock Market">📈 Stock Market</button>
+                <button class="filter-btn" data-category="Healthy Life">💚 Healthy Life</button>
+                <button class="filter-btn" data-category="Harvesting">🌾 Harvesting</button>
+            </div>
+        </div>
+
+        <!-- Bento Grid Cards Container -->
+        <main class="bento-grid" id="ideasGrid">
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+                <p>Loading amazing ideas...</p>
+            </div>
+        </main>
+
+        <!-- Footer Stats -->
+        <footer class="footer">
+            <div class="stats" id="stats">
+                <span>✨ Ideas Repository</span>
+                <span id="ideaCount">0 ideas</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modal Popup -->
+    <div id="ideaModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle"></h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-meta">
+                    <span class="modal-category" id="modalCategory"></span>
+                    <div class="modal-tags" id="modalTags"></div>
+                </div>
+                <div class="modal-description" id="modalDescription"></div>
+                <div class="modal-details">
+                    <div class="detail-item">
+                        <strong>Difficulty:</strong>
+                        <span id="modalDifficulty"></span>
+                    </div>
+                    <div class="detail-item">
+                        <strong>Estimated Timeframe:</strong>
+                        <span id="modalTimeframe"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

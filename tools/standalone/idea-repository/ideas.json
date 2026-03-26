@@ -1,0 +1,97 @@
+[
+    {
+        "id": 1,
+        "category": "Stock Market",
+        "title": "AI-Powered Stock Prediction Dashboard",
+        "shortDescription": "Real-time stock analysis using machine learning to predict market trends and provide investment insights.",
+        "longDescription": "This platform combines real-time market data with advanced AI algorithms to predict stock movements with 85% accuracy. Features include sentiment analysis from news, technical indicators, and personalized portfolio recommendations. The dashboard visualizes complex data through intuitive charts and provides actionable insights for both novice and experienced investors.",
+        "tags": [
+            "AI",
+            "Machine Learning",
+            "Finance",
+            "Real-time"
+        ],
+        "difficulty": "Advanced",
+        "timeframe": "6 months",
+        "imagePlaceholder": "📊"
+    },
+    {
+        "id": 2,
+        "category": "Healthy Life",
+        "title": "Holistic Wellness Tracker",
+        "shortDescription": "Comprehensive health monitoring app that tracks nutrition, exercise, sleep, and mental wellness in one place.",
+        "longDescription": "Unlike basic fitness apps, this wellness tracker takes a holistic approach by monitoring physical activity, sleep patterns, nutrition intake, stress levels, and mental well-being. It uses AI to provide personalized recommendations and connects with wearable devices. Features include mood tracking, meditation guides, meal planning, and community challenges to maintain motivation.",
+        "tags": [
+            "Health",
+            "Wellness",
+            "AI",
+            "Mobile App"
+        ],
+        "difficulty": "Intermediate",
+        "timeframe": "4 months",
+        "imagePlaceholder": "💪"
+    },
+    {
+        "id": 3,
+        "category": "Harvesting",
+        "title": "Smart Urban Farming System",
+        "shortDescription": "IoT-enabled hydroponic system for urban agriculture with automated watering, nutrient delivery, and growth monitoring.",
+        "longDescription": "This complete urban farming solution combines IoT sensors, automated irrigation, and AI-powered plant health monitoring. Users can grow fresh produce in limited spaces using vertical hydroponic systems. The platform provides real-time data on plant growth, nutrient levels, and environmental conditions. Includes mobile alerts, yield predictions, and a marketplace for sharing harvests with local communities.",
+        "tags": [
+            "IoT",
+            "Agriculture",
+            "Sustainability",
+            "Automation"
+        ],
+        "difficulty": "Advanced",
+        "timeframe": "8 months",
+        "imagePlaceholder": "🌱"
+    },
+    {
+        "id": 4,
+        "category": "Stock Market",
+        "title": "Crypto Portfolio Manager",
+        "shortDescription": "Unified dashboard for managing cryptocurrency investments across multiple exchanges with tax reporting features.",
+        "longDescription": "A comprehensive crypto portfolio management tool that aggregates holdings from all major exchanges. Features include real-time price tracking, automated tax calculations, performance analytics, and DeFi yield optimization. The platform supports 500+ cryptocurrencies and provides detailed reports for tax season, making crypto investment management simple and compliant.",
+        "tags": [
+            "Crypto",
+            "Blockchain",
+            "Finance",
+            "Tax"
+        ],
+        "difficulty": "Intermediate",
+        "timeframe": "5 months",
+        "imagePlaceholder": "💰"
+    },
+    {
+        "id": 5,
+        "category": "Healthy Life",
+        "title": "Mindful Meditation Coach",
+        "shortDescription": "AI-powered meditation app that adapts to your mood and stress levels using voice and facial recognition.",
+        "longDescription": "This innovative meditation app uses AI to analyze your emotional state through voice tone and facial expressions, then suggests personalized meditation sessions. Features include guided breathing exercises, nature sounds, progress tracking, and integration with smartwatches. The app learns from your responses to continuously improve recommendations and help reduce anxiety and stress.",
+        "tags": [
+            "Mental Health",
+            "AI",
+            "Wellness",
+            "Mobile"
+        ],
+        "difficulty": "Advanced",
+        "timeframe": "7 months",
+        "imagePlaceholder": "🧘"
+    },
+    {
+        "id": 6,
+        "category": "Harvesting",
+        "title": "Farm-to-Table Marketplace",
+        "shortDescription": "Platform connecting local farmers directly with consumers and restaurants for fresh, sustainable produce.",
+        "longDescription": "A marketplace that eliminates middlemen by connecting local farmers directly with consumers and restaurants. Features include seasonal produce listings, farmer profiles, delivery scheduling, and community-supported agriculture (CSA) subscriptions. Includes a rating system, recipe suggestions based on available produce, and tools for farmers to manage inventory and orders efficiently.",
+        "tags": [
+            "E-commerce",
+            "Sustainability",
+            "Local Business"
+        ],
+        "difficulty": "Intermediate",
+        "timeframe": "5 months",
+        "imagePlaceholder": "🥬"
+    }
+]

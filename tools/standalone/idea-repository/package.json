@@ -1,0 +1,20 @@
+{
+  "name": "idea-repository",
+  "version": "1.0.0",
+  "description": "A beautiful bento-grid idea repository with Node.js backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.22.1",
+    "npm": "^11.12.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
