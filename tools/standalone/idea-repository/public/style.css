@@ -4,7 +4,9 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -393,7 +395,9 @@ body {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* ========================================
@@ -452,7 +456,7 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 20px;
     width: 100%;
-    max-width: 640px;
+    max-width: 950px;
     max-height: 85vh;
     overflow-y: auto;
     box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(99, 102, 241, 0.1);
@@ -538,7 +542,7 @@ body {
 
 .modal-description {
     color: var(--text-secondary);
-    font-size: 0.925rem;
+    font-size: 0.85rem;
     line-height: 1.7;
 }
 

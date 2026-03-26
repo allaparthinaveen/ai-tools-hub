@@ -2,17 +2,19 @@
     {
         "id": 1,
         "category": "Stock Market",
-        "title": "AI-Powered Stock Prediction Dashboard",
-        "shortDescription": "Real-time stock analysis using machine learning to predict market trends and provide investment insights.",
-        "longDescription": "This platform combines real-time market data with advanced AI algorithms to predict stock movements with 85% accuracy. Features include sentiment analysis from news, technical indicators, and personalized portfolio recommendations. The dashboard visualizes complex data through intuitive charts and provides actionable insights for both novice and experienced investors.",
+        "title": "The power of compounding",
+        "shortDescription": "Reinvesting earnings to generate additional returns.",
+        "longDescription": [
+            "1. Dividend Reinvestment Plans (DRIPs): Invest in dividend-paying stocks or ETFs. Enroll in DRIPs to automatically reinvest dividends into additional shares.This process compounds returns over the long term",
+            "2. Index Fund investing: Invest in low-cost, diversified stock index funds for long-term growth leveraging market returns ad reinvesting divindends",
+            "3. High-Yield Fixed Income with reinvestment: Allocate funds to high-quality fixed income assets like bonds or leveraged loans, reinvesting interest to compound returns while managing volatility"
+        ],
         "tags": [
             "AI",
             "Machine Learning",
             "Finance",
             "Real-time"
         ],
-        "difficulty": "Advanced",
-        "timeframe": "6 months",
         "imagePlaceholder": "📊"
     },
     {
