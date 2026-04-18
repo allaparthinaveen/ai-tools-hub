@@ -1,0 +1,19 @@
+Start broad, then go deep
+Begin with an overview prompt like “Give me a structured overview of [topic] — key concepts, subtopics, and what I should understand first.” This gives you a map before diving in.
+
+Use one long conversation, not many short ones
+Stay in the same chat so Claude builds on what’s already been discussed
+
+Ask Claude to act as a teacher or expert
+Set the tone early: “Explain this to me like I’m a beginner” or “Assume I have a background in X.” This calibrates the depth.
+
+Go subtopic by subtopic
+Don’t try to learn everything at once. Ask Claude to break the topic into sections, then explore each one before moving on.
+Challenge and verify
+Ask follow-up questions like “What are the counterarguments to this?” or “Where do experts disagree?” This builds critical understanding, not just surface knowledge.
+Use Claude’s Research feature for current info
+If your topic needs up-to-date sources, use the Deep Research feature (the magnifying glass icon in the input bar). It searches the web and synthesizes findings into a report.
+Summarize as you go
+Periodically ask “Summarize what we’ve covered so far” — this helps consolidate learning and gives you notes to save.
+  
+  
