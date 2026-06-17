@@ -1,0 +1,312 @@
+---
+name: two-layer-logging
+description: "Use this skill whenever the user wants to implement logging in any project (Java, Spring, Node.js, Python, etc.) using the two-layer logging style — where surface messages are generic/professional for anyone to read, but encoded error codes and ref tags carry precise case context only the author understands. Triggers: any mention of 'logging style', 'custom logging', 'encoded logs', 'private logging', 'two-layer logs', or asking AI to add logging to a project following this pattern."
+---
+
+# Two-Layer Logging System
+
+## Philosophy
+
+Every log line carries two layers of information:
+
+| Layer | Audience | Contains |
+|-------|----------|----------|
+| **Surface** | Anyone | Generic, professional message. Tells you *that* something happened |
+| **Hidden** | Author only | Error code + ref tag. Tells you *why* and *which exact case* |
+
+The private meaning of each error code lives **only with the author** — never in the repo.
+
+---
+
+## Universal Log Format
+
+```
+[LEVEL] [TIMESTAMP] [MODULE] [ERROR_CODE] - [Generic Message] | ref:[ENCODED_CONTEXT]
+```
+
+### Example:
+```
+ERROR 2026-06-18 14:32:01 PaymentService AUTH-F02 - Service encountered an authorization failure | ref:B2-TXN-LOOP-3
+```
+
+- Anyone reads: *"auth failed in payment service"*
+- Author reads: *"expired JWT token, 3rd iteration of transaction loop, batch type B2"*
+
+---
+
+## Error Code Taxonomy
+
+### Format: `[MODULE]-[CATEGORY][CASE_NUMBER]`
+
+### Categories (always 10 cases per module):
+| Category | Code | Cases |
+|----------|------|-------|
+| Success | `S` | 01–04 |
+| Failure/Error | `F` | 01–04 |
+| Unknown/Runtime | `U` | 01–02 |
+
+### Standard Module Prefixes (extend as needed):
+| Prefix | Module |
+|--------|--------|
+| `AUTH` | Authentication & Authorization |
+| `PAY` | Payment Processing |
+| `DB` | Database Operations |
+| `API` | API / Controller Layer |
+| `SVC` | Service / Business Logic |
+| `INT` | External Integrations |
+| `FILE` | File Processing |
+| `CACHE` | Cache Operations |
+| `NOTIF` | Notifications |
+| `QUEUE` | Message Queue / Events |
+| `CONF` | Configuration |
+| `SYS` | System / Infrastructure |
+| `BATCH` | Batch / Job Orchestration |
+| `SEC` | Security |
+| `REPORT` | Reporting / Export |
+
+### Template for any new module (always define all 10 before coding):
+```
+[MODULE]-S01 → Success case 1
+[MODULE]-S02 → Success case 2
+[MODULE]-S03 → Success case 3
+[MODULE]-S04 → Success case 4
+[MODULE]-F01 → Failure case 1
+[MODULE]-F02 → Failure case 2
+[MODULE]-F03 → Failure case 3
+[MODULE]-F04 → Failure case 4
+[MODULE]-U01 → Unknown/Runtime case 1
+[MODULE]-U02 → Unknown/Runtime case 2
+```
+
+---
+
+## ref: Tag Encoding
+
+### Format: `ref:[SCOPE]-[CONTEXT]-[POSITION]`
+
+### Scope Codes (project-specific, define your own):
+| Code | Example Meaning |
+|------|----------------|
+| `B1`, `B2` | Batch/job type |
+| `R1`, `R2` | Request type or route |
+| `S1`, `S2` | Scheduled job type |
+| `E1`, `E2` | Event type |
+
+### Universal Context Shorthands:
+| Code | Meaning |
+|------|---------|
+| `LOOP` | Loop iteration |
+| `CHK` | Chunk/block |
+| `STEP` | Pipeline step |
+| `RTY` | Retry attempt |
+| `SKP` | Skip logic triggered |
+| `INIT` | Initialization phase |
+| `RD` | Read phase |
+| `PR` | Process/transform phase |
+| `WR` | Write/persist phase |
+| `CB` | Callback |
+| `EVT` | Event handler |
+| `SCH` | Scheduler trigger |
+| `HOOK` | Webhook |
+
+### Position: always a number suffix
+```
+ref:B2-TXN-LOOP-3     → scope B2, transaction loop, 3rd iteration
+ref:R1-CHK-7          → request type R1, chunk 7
+ref:S1-STEP-2         → scheduled job S1, step 2
+ref:B1-RTY-2          → batch B1, retry attempt 2
+ref:E2-EVT-1          → event type E2, first event handler
+```
+
+---
+
+## Surface Message Guidelines
+
+### SUCCESS (INFO level):
+- "Operation completed successfully"
+- "Record processed and committed"
+- "Service call completed within expected parameters"
+- "Step execution finished"
+- "Resource acquired and initialized"
+
+### FAILURE (ERROR level):
+- "Operation failed, process cannot continue"
+- "Record processing failed"
+- "Service encountered an authorization failure"
+- "Data inconsistency detected, operation terminated"
+- "Step execution failed, see ref for context"
+
+### UNKNOWN/RUNTIME (WARN level):
+- "Unexpected condition encountered during processing"
+- "Runtime anomaly detected, process state uncertain"
+- "Unclassified exception during execution"
+- "Operation result indeterminate"
+
+### Rules:
+- ❌ Never mention specific field names, variable names, or exception messages
+- ❌ Never expose stack traces in surface messages
+- ❌ Never log actual data values (PII, amounts, IDs) in the message string
+- ❌ Never use language that reveals internal architecture
+- ✅ All specific context goes into the `ref:` tag only
+- ✅ Messages must be explainable to a non-technical manager
+
+---
+
+## Language-Specific Implementation
+
+### Java / Spring
+```java
+// Logger wrapper — all logging goes through this class only
+public class AppLogger {
+
+    private static final Logger log = LoggerFactory.getLogger(AppLogger.class);
+
+    public static void success(String module, String caseCode,
+                                String message, String refContext) {
+        MDC.put("errorCode", module + "-S" + caseCode);
+        MDC.put("ref", refContext);
+        log.info("{}-S{} - {} | ref:{}", module, caseCode, message, refContext);
+        MDC.clear();
+    }
+
+    public static void failure(String module, String caseCode,
+                                String message, String refContext) {
+        MDC.put("errorCode", module + "-F" + caseCode);
+        MDC.put("ref", refContext);
+        log.error("{}-F{} - {} | ref:{}", module, caseCode, message, refContext);
+        MDC.clear();
+    }
+
+    public static void unknown(String module, String caseCode,
+                                String message, String refContext) {
+        MDC.put("errorCode", module + "-U" + caseCode);
+        MDC.put("ref", refContext);
+        log.warn("{}-U{} - {} | ref:{}", module, caseCode, message, refContext);
+        MDC.clear();
+    }
+}
+
+// Usage
+AppLogger.failure("AUTH", "02", "Service encountered an authorization failure", "B2-TXN-LOOP-3");
+```
+
+### Python
+```python
+import logging
+import uuid
+
+logger = logging.getLogger(__name__)
+
+class AppLogger:
+
+    @staticmethod
+    def success(module: str, case_code: str, message: str, ref_context: str):
+        code = f"{module}-S{case_code}"
+        logger.info(f"{code} - {message} | ref:{ref_context}",
+                    extra={"errorCode": code, "ref": ref_context})
+
+    @staticmethod
+    def failure(module: str, case_code: str, message: str, ref_context: str):
+        code = f"{module}-F{case_code}"
+        logger.error(f"{code} - {message} | ref:{ref_context}",
+                     extra={"errorCode": code, "ref": ref_context})
+
+    @staticmethod
+    def unknown(module: str, case_code: str, message: str, ref_context: str):
+        code = f"{module}-U{case_code}"
+        logger.warning(f"{code} - {message} | ref:{ref_context}",
+                       extra={"errorCode": code, "ref": ref_context})
+
+# Usage
+AppLogger.failure("AUTH", "02", "Service encountered an authorization failure", "R1-LOOP-3")
+```
+
+### Node.js / TypeScript
+```typescript
+import winston from 'winston';
+
+const logger = winston.createLogger({ /* your transport config */ });
+
+class AppLogger {
+
+  static success(module: string, caseCode: string, message: string, refContext: string): void {
+    const code = `${module}-S${caseCode}`;
+    logger.info(`${code} - ${message} | ref:${refContext}`, { errorCode: code, ref: refContext });
+  }
+
+  static failure(module: string, caseCode: string, message: string, refContext: string): void {
+    const code = `${module}-F${caseCode}`;
+    logger.error(`${code} - ${message} | ref:${refContext}`, { errorCode: code, ref: refContext });
+  }
+
+  static unknown(module: string, caseCode: string, message: string, refContext: string): void {
+    const code = `${module}-U${caseCode}`;
+    logger.warn(`${code} - ${message} | ref:${refContext}`, { errorCode: code, ref: refContext });
+  }
+}
+
+// Usage
+AppLogger.failure('AUTH', '02', 'Service encountered an authorization failure', 'R1-LOOP-3');
+```
+
+---
+
+## Rules for AI When Implementing Logging
+
+1. **Always ask for the module taxonomy first** before writing any logging code for a new module. Define all 10 cases before implementation starts.
+
+2. **Never use native log calls directly** (`log.info`, `print`, `console.log`). All logging goes through the project's `AppLogger` / `BatchLogger` wrapper class.
+
+3. **Never put specific context in the message string.** Route it to the `ref:` tag.
+
+4. **Every catch block must map the exception** to the correct `[MODULE]-[CATEGORY][CASE]` code. No raw `e.getMessage()` in logs.
+
+5. **When adding logging to existing code**, first identify all possible outcomes (success, failure, unknown), assign codes, then add log calls.
+
+6. **Surface messages must pass the "manager test"** — a non-technical person should understand the severity but not the cause.
+
+7. **For new projects**, generate the `AppLogger` class first, then implement features. Logging infrastructure comes before business logic.
+
+8. **MDC / context injection** (where supported) must include at minimum:
+   - `correlationId` — unique ID per request/job run
+   - `errorCode` — the structured code
+   - `ref` — the encoded context tag
+
+---
+
+## What To Never Do
+
+```
+❌ log.error("JWT token is null for user {}", userId)
+❌ log.info("Payment of {} processed for account {}", amount, accountId)
+❌ log.warn(e.getMessage())
+❌ console.log("Error in auth:", error.stack)
+❌ print(f"Failed because {specific_reason}")
+❌ Logging outside the AppLogger wrapper
+❌ Adding log lines without a defined error code
+❌ Committing the private codebook to the repository
+```
+
+## What To Always Do
+
+```
+✅ AppLogger.failure("AUTH", "02", "Service encountered an authorization failure", "B2-TXN-LOOP-3")
+✅ Define all 10 error codes per module before writing implementation
+✅ Keep generic messages vague but professionally meaningful
+✅ Keep the private codebook (actual case meanings) offline and with the author only
+✅ One AppLogger class per project — consistent, centralized
+```
+
+---
+
+## Private Codebook (Author Only — Never Commit)
+
+Maintain a separate private document (encrypted, offline) mapping every code to its real meaning:
+
+```
+AUTH-S01 = [your private meaning]
+AUTH-S02 = [your private meaning]
+AUTH-F01 = [your private meaning]
+AUTH-F02 = [your private meaning]
+...
+```
