@@ -1,0 +1,383 @@
+# Architecture-First AI Skill
+
+Use this skill when the user wants to build a new software project, modify an existing project, convert requirements or Figma into an implementation plan, or generate production code with strong architectural discipline.
+
+The purpose of this skill is to stop the AI from jumping directly into code. The AI must first derive the architecture, data structures, interfaces, risks, and implementation sequence before writing code.
+
+## Core Rule
+
+- Read the user input carefully and identify whether the request is for a new system, an existing system change, or UI-only input.
+- Do not generate implementation code until Sections 1 through 10 are completed.
+- Do not silently invent production-critical details. If an important detail is missing, place it under assumptions or unknowns.
+- Prefer the simplest architecture that can satisfy the requirements.
+- Every section must contain concrete, checkable output. Do not write vague statements such as "ensure scalability" or "handle errors properly" without specifying how.
+- If the user asks for code immediately, first produce the compact architecture analysis using this structure, then proceed to code only after the structure is complete.
+
+## Output Contract
+
+Always produce the response in the following order:
+
+1. Requirement Summary
+2. Assumptions and Unknowns
+3. Architecture Proposal
+4. Data Structures and Storage Design
+5. API and Event Contracts
+6. Reliability, Security, and Observability
+7. Coding Standards and Module Structure
+8. Implementation Roadmap
+9. Technical Risks
+10. Open Questions
+
+Each section is mandatory unless it is truly not applicable. If a section is not applicable, explicitly state why.
+
+## Section 1: Requirement Summary
+
+Follow these steps exactly:
+
+- Rewrite the user's problem in 3 to 7 sentences using precise engineering language.
+- Identify the business goal or product goal.
+- Identify all user types, system actors, or external systems involved.
+- List all functional requirements as bullets, each beginning with an action verb.
+- List all non-functional requirements separately, including expected latency, throughput, availability, consistency, security, compliance, scale, and maintainability needs when available.
+- Identify explicit constraints such as tech stack limits, deployment environment, cost sensitivity, deadlines, or backward compatibility requirements.
+- Identify non-goals so the scope stays constrained.
+- Identify contradictions, ambiguity, or hidden complexity in the request.
+- Do not design the solution in this section.
+
+Minimum output for this section:
+
+- Problem statement
+- User and system actors
+- Functional requirements
+- Non-functional requirements
+- Constraints
+- Non-goals
+
+## Section 2: Assumptions and Unknowns
+
+Follow these steps exactly:
+
+- Review the request and find every missing detail that affects architecture, storage, interfaces, reliability, or implementation sequencing.
+- For each inferred detail, write it under Assumptions using this format:
+  - Assume: <statement> because <reason>.
+- For each missing detail that can change the design, write it under Unknowns using this format:
+  - Unknown: <statement>. Blocker: yes or no. Impact: <what changes if this is wrong>.
+- Separate confirmed facts from inferred facts.
+- Mark which unknowns are blockers and which can be deferred.
+- Ask only the minimum number of clarifying questions required to avoid architectural hallucination.
+- Do not hide missing requirements by making silent decisions.
+
+Minimum output for this section:
+
+- Confirmed facts
+- Assumptions
+- Unknowns
+- Blocking questions
+
+## Section 3: Architecture Proposal
+
+Follow these steps exactly:
+
+- Choose the architecture style first, such as monolith, modular monolith, monolith plus workers, event-driven system, or microservices.
+- Explain why this is the simplest architecture that satisfies the stated needs.
+- List the major components or modules.
+- For each component, specify:
+  - Name
+  - Responsibility
+  - Inputs and outputs
+  - Important dependencies
+- For every interaction between components, specify:
+  - Source component
+  - Target component
+  - Communication type such as REST, gRPC, database call, message queue, webhook, batch job, or shared library
+  - Whether it is synchronous or asynchronous
+- Describe the end-to-end request or workflow path for the main use cases.
+- Identify the stateful parts and stateless parts of the system.
+- Identify where background processing is needed.
+- State one or more architecture alternatives that were considered and rejected, and explain why they were rejected.
+- Keep the design explicit enough that another engineer could sketch a component diagram from this section alone.
+
+Minimum output for this section:
+
+- Chosen architecture style
+- Component list
+- Interaction map
+- Main workflow description
+- Rejected alternatives
+
+## Section 4: Data Structures and Storage Design
+
+Follow these steps exactly:
+
+- Identify all core domain entities, aggregates, value objects, and important reference data.
+- For each entity, specify:
+  - Name
+  - Purpose
+  - Key fields
+  - Primary key
+  - Natural key if any
+  - Relationships with other entities
+- For each data set, specify where it should live:
+  - Relational database
+  - Document store
+  - Key-value store
+  - Cache
+  - Search index
+  - Object storage
+  - Queue or event log
+  - In-memory structure
+- Justify why that storage choice matches the access pattern.
+- For every critical read or write path, specify:
+  - Operation name
+  - Which entities it touches
+  - Query pattern or access pattern
+  - Required indexes or partitioning keys
+- Describe consistency expectations for each critical write path.
+- Describe retention, archival, deletion, and migration concerns.
+- If the task modifies an existing system, explain exactly how existing schemas or models change.
+- Call out compatibility risks for schema evolution.
+
+Minimum output for this section:
+
+- Domain model
+- Storage choices
+- Access patterns
+- Indexing strategy
+- Data lifecycle notes
+- Migration impact
+
+## Section 5: API and Event Contracts
+
+Follow these steps exactly:
+
+- Identify every externally visible operation, endpoint, event, command, or message.
+- For each contract, specify:
+  - Name
+  - Purpose
+  - Caller or producer
+  - Receiver or consumer
+  - Request or payload fields with types
+  - Response fields with types if applicable
+  - Validation rules
+  - Error cases
+  - Idempotency requirements
+- For HTTP or RPC interfaces, specify method, route, and expected status or result behavior.
+- For events or queue messages, specify event name, payload shape, delivery expectations, and retry behavior.
+- Distinguish clearly between internal contracts and public contracts.
+- Describe the versioning strategy.
+- Describe how backward compatibility will be preserved when contracts evolve.
+- If a breaking change is unavoidable, describe the migration path.
+
+Minimum output for this section:
+
+- Contract inventory
+- Request and response shapes
+- Validation rules
+- Error behavior
+- Versioning and compatibility notes
+
+## Section 6: Reliability, Security, and Observability
+
+Follow these steps exactly:
+
+- List all important failure modes, including dependency failure, slow database, timeout, duplicate message, partial write, race condition, and operator error.
+- For each failure mode, specify:
+  - Detection signal
+  - User-visible impact
+  - Internal impact
+  - Preventive design measure
+  - Recovery or mitigation behavior
+- Define timeout, retry, backoff, and circuit breaker behavior for external dependencies.
+- Identify which operations must be idempotent and explain how idempotency is achieved.
+- Describe data backup, restore, and rollback expectations where relevant.
+- Define logging policy:
+  - What to log
+  - Correlation identifiers
+  - What must never be logged
+- Define observability metrics:
+  - Request count
+  - Error rate
+  - Latency percentiles
+  - Queue lag
+  - Job success and failure counts
+  - Resource saturation signals when relevant
+- Define tracing needs for cross-component workflows.
+- Define security controls:
+  - Authentication
+  - Authorization
+  - Secret handling
+  - Input validation
+  - Data protection
+  - Audit trail if needed
+- Describe graceful degradation behavior when part of the system is unavailable.
+
+Minimum output for this section:
+
+- Failure mode table or list
+- Retry and timeout policy
+- Idempotency plan
+- Logging and metrics plan
+- Security controls
+- Recovery strategy
+
+## Section 7: Coding Standards and Module Structure
+
+Follow these steps exactly:
+
+- Define the module or folder structure before writing code.
+- For each module, describe what belongs inside it and what must stay outside it.
+- Define naming conventions for files, classes, functions, API handlers, background jobs, database tables, and events.
+- Define how business logic should be separated from infrastructure code.
+- Define error-handling conventions:
+  - Which errors are user-facing
+  - Which errors are internal
+  - How exceptions or result objects are propagated
+- Define test strategy:
+  - Unit tests
+  - Integration tests
+  - Contract tests
+  - End-to-end tests
+- Define documentation expectations:
+  - README content
+  - Architecture decision records
+  - API docs
+  - Migration notes
+- Define code review checklist items such as correctness, complexity, observability, performance, security, and test coverage.
+- If the system extends an existing codebase, describe where the new logic belongs and which layers must not be bypassed.
+
+Minimum output for this section:
+
+- Module layout
+- Naming rules
+- Boundary rules
+- Error-handling rules
+- Testing strategy
+- Documentation rules
+- Review checklist
+
+## Section 8: Implementation Roadmap
+
+Follow these steps exactly:
+
+- Break the project into sequential milestones.
+- For each milestone, specify:
+  - Name
+  - Goal
+  - Exact implementation tasks
+  - Dependencies
+  - Deliverable or completion condition
+- Order the milestones so that domain modeling, contract definition, and risky technical spikes happen before large-scale coding.
+- Identify which parts should be implemented first to reduce uncertainty.
+- If modifying an existing system, include migration-safe rollout steps such as feature flags, dual writes, shadow reads, canary rollout, or staged cutover where relevant.
+- Include test and validation checkpoints after each major milestone.
+- Include deployment and rollback preparation before production release.
+- End with cleanup tasks such as removing temporary compatibility paths or obsolete code.
+
+Minimum output for this section:
+
+- Milestone plan
+- Task order
+- Dependency notes
+- Validation checkpoints
+- Deployment and rollback steps
+
+## Section 9: Technical Risks
+
+Follow these steps exactly:
+
+- Identify the most important technical risks, not generic risks.
+- For each risk, specify:
+  - Risk name
+  - Cause
+  - Trigger condition
+  - Impact on users or system behavior
+  - Likelihood as low, medium, or high
+  - Preventive mitigation
+  - Detection method
+  - Contingency or fallback plan
+  - Whether human approval is required
+- Prioritize risks by severity and likelihood.
+- Keep the risks tied to the chosen architecture, data model, dependencies, and rollout plan.
+- Do not list vague items such as "scalability issue" without saying what load or what bottleneck.
+
+Minimum output for this section:
+
+- Prioritized technical risk list
+- Impact and mitigation details
+- Fallback actions
+
+## Section 10: Open Questions
+
+Follow these steps exactly:
+
+- List unresolved questions that materially affect architecture, correctness, operations, or migration.
+- For each question, specify:
+  - Why the question matters
+  - Which options exist
+  - How each option changes the architecture or implementation
+  - Whether the current proposal assumes a default
+  - Whether work can proceed before the answer is known
+- Exclude cosmetic or low-value questions.
+- Keep the questions focused on decisions that a human stakeholder, architect, or product owner must resolve.
+
+Minimum output for this section:
+
+- Open question list
+- Impact of each unanswered decision
+- Default assumptions if used
+
+## Code Generation Gate
+
+Only after completing Sections 1 through 10 may the AI generate code.
+
+Before generating code, the AI must do all of the following:
+
+- Confirm that the architecture is coherent.
+- Confirm that data structures and contracts are defined.
+- Confirm that major risks and unknowns are visible.
+- Confirm that the implementation order is sensible.
+- Confirm that any required migration or compatibility strategy is defined.
+
+If any of the above is incomplete, stop and complete the analysis first.
+
+## Special Modes
+
+### When the input is only UI or Figma
+
+- Derive user actions from screens.
+- Infer domain entities from the UI fields and states.
+- Infer workflows, validations, and backend operations from visible user journeys.
+- Mark every inferred backend behavior as an assumption unless it is explicitly shown.
+- Do not pretend the UI fully defines the architecture.
+
+### When the request is a modification of an existing project
+
+- First summarize the current system as understood from the request or codebase context.
+- Identify impacted modules, schemas, contracts, jobs, and deployment paths.
+- Distinguish additive changes from breaking changes.
+- Add migration, rollback, and compatibility analysis before implementation.
+- Do not inject new patterns that conflict with the existing architecture unless there is a clear justification.
+
+### When the user requests rapid prototyping
+
+- Keep the architecture simple, but still complete Sections 1 through 10 in compact form.
+- Explicitly state what production concerns are intentionally deferred.
+- Do not pretend the prototype is production-ready if reliability, security, or migration details are intentionally omitted.
+
+## Quality Checks
+
+Before finalizing any response under this skill, verify the following:
+
+- The output is structured exactly in the required order.
+- Every section contains actionable and concrete engineering content.
+- No critical production detail was silently invented.
+- The architecture matches the access patterns and constraints.
+- Data design is explicit, not implied.
+- Reliability and operational behavior are described, not hand-waved.
+- Module boundaries are clear enough to guide implementation.
+- Risks and open questions are specific and decision-relevant.
+- Code generation did not begin before the analysis was complete.
+
+## Short Reminder
+
+Architecture first. Data structures first. Contracts first. Failure handling first. Code after that.
