@@ -1,0 +1,421 @@
+---
+name: question-to-book-pdf
+description: >
+  Use this skill whenever the user wants to turn a list of questions (from a .txt, .csv, or any input file) into a beautifully formatted, book-style PDF. The skill reads the questions, researches each one thoroughly using web search, finds relevant images, and produces a child-friendly illustrated "answer book" PDF — complete with a cover page, table of contents, chapters per question, illustrated answers in simple language, fun facts, and a glossary. Trigger this skill when the user says things like: "turn my questions into a PDF", "answer these questions and make a book", "create a book from questions", "research my questions and make a PDF", "make a kid-friendly book from this file", or uploads any file with a list of questions and wants a polished document output. Also trigger if the user asks for a "question book", "answer book", or "illustrated PDF" from any source of questions.
+---
+
+# Question-to-Book PDF Skill
+
+Transforms a file of questions into a beautifully illustrated, book-style PDF that even a 10-year-old can understand. Each question becomes a chapter with a researched answer, plain-language explanation, fun facts, and images.
+
+---
+
+## Workflow Overview
+
+```
+Input file (questions)
+      ↓
+  Parse questions
+      ↓
+  For each question:
+    → Web search (3–5 queries)
+    → Image search (1–2 images)
+    → Synthesize child-friendly answer
+      ↓
+  Assemble PDF:
+    Cover → TOC → Chapters → Glossary
+      ↓
+  Output: book.pdf
+```
+
+---
+
+## Step 1 — Read the Input File
+
+Detect format automatically:
+
+```python
+# /mnt/user-data/uploads/<filename>
+# Supported: .txt (one question per line), .csv (first column), .md, plain text blocks
+
+lines = open(path).read().splitlines()
+questions = [l.strip().lstrip("0123456789.-) ") for l in lines if l.strip() and not l.strip().startswith("#")]
+```
+
+Skip blank lines and comment lines. Strip leading numbers/bullets. Each remaining line is one question/chapter.
+
+---
+
+## Step 2 — Research Each Question
+
+For **every question**, perform 3–5 targeted web searches. Aim for:
+- A factual, accurate answer (1–2 sources)
+- A "how it works" explanation (plain language)
+- A surprising or fun fact
+- A concrete real-world example a child would recognise
+
+**Search strategy:**
+```
+Query 1: <question verbatim>
+Query 2: "<topic> explained for kids"
+Query 3: "<topic> fun facts"
+Query 4: "<topic> simple explanation"  (if complex)
+Query 5: "<topic> real life example"   (if abstract)
+```
+
+Synthesise into these fields per question:
+```json
+{
+  "question": "Why is the sky blue?",
+  "simple_answer": "2–3 sentence plain-language answer (no jargon)",
+  "deep_dive": "3–5 sentence richer explanation with a little science/history",
+  "fun_fact": "One surprising fact",
+  "example": "A real-world example a kid would know",
+  "glossary_terms": [{"word": "...", "definition": "..."}]
+}
+```
+
+**Tone rules for text:**
+- Simple words (Grade 4–5 reading level)
+- Short sentences (max ~20 words)
+- Active voice
+- Use analogies ("like a…", "imagine…")
+- No bullet walls — write in flowing paragraphs
+
+---
+
+## Step 3 — Fetch Images
+
+For each question fetch **1–2 images** using the `image_search` tool:
+
+```
+Query: "<topic> illustration" or "<topic> photograph" or "<topic> diagram"
+```
+
+Save images to `/tmp/book_images/q{n}_img{m}.jpg` for embedding.
+
+Pick images that are:
+- Clear, bright, and visually explain the concept
+- Safe and age-appropriate
+- Not text-heavy (diagrams are OK if simple)
+
+---
+
+## Step 4 — Build the PDF
+
+Use **ReportLab Platypus** for the full layout. Install if needed:
+
+```bash
+pip install reportlab Pillow requests --break-system-packages -q
+```
+
+### Book structure
+
+```
+Page 1  : Cover  (title, subtitle, decorative border)
+Page 2  : Table of Contents  (auto-generated)
+Pages…  : One chapter per question
+Last    : Glossary (collected terms from all chapters)
+```
+
+### Styles to define
+
+```python
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
+from reportlab.lib import colors
+
+BRAND_BLUE   = colors.HexColor("#2563EB")
+BRAND_YELLOW = colors.HexColor("#FCD34D")
+BRAND_GREEN  = colors.HexColor("#10B981")
+BRAND_BG     = colors.HexColor("#F0F9FF")
+
+styles = getSampleStyleSheet()
+
+# Override/add styles:
+cover_title   = ParagraphStyle("CoverTitle",   fontSize=36, leading=42, alignment=TA_CENTER, textColor=BRAND_BLUE, spaceAfter=12, fontName="Helvetica-Bold")
+cover_sub     = ParagraphStyle("CoverSub",     fontSize=16, leading=20, alignment=TA_CENTER, textColor=colors.gray)
+chap_number   = ParagraphStyle("ChapNumber",   fontSize=11, textColor=BRAND_GREEN, fontName="Helvetica-Bold", spaceBefore=6)
+chap_question = ParagraphStyle("ChapQuestion", fontSize=22, leading=28, textColor=BRAND_BLUE, fontName="Helvetica-Bold", spaceAfter=10)
+section_head  = ParagraphStyle("SectionHead",  fontSize=13, textColor=BRAND_GREEN, fontName="Helvetica-Bold", spaceBefore=14, spaceAfter=4)
+body_text     = ParagraphStyle("BodyText2",    fontSize=12, leading=18, textColor=colors.HexColor("#1F2937"), alignment=TA_JUSTIFY, spaceAfter=8)
+fun_fact_box  = ParagraphStyle("FunFact",      fontSize=11, leading=16, textColor=colors.HexColor("#7C3AED"), backColor=colors.HexColor("#EDE9FE"), borderPadding=8, borderRadius=6, spaceAfter=10)
+glossary_term = ParagraphStyle("GlossaryTerm", fontSize=12, fontName="Helvetica-Bold", textColor=BRAND_BLUE, spaceAfter=2)
+glossary_def  = ParagraphStyle("GlossaryDef",  fontSize=11, leading=16, leftIndent=16, spaceAfter=8)
+toc_entry     = ParagraphStyle("TOCEntry",     fontSize=12, leading=20, leftIndent=20)
+```
+
+### Cover page
+
+```python
+from reportlab.platypus import Paragraph, Spacer, Image, PageBreak, Table, TableStyle, HRFlowable
+from reportlab.lib.units import inch
+
+def cover_page(title, question_count):
+    return [
+        Spacer(1, 1.2*inch),
+        # colourful top banner (Table with background)
+        Table([[Paragraph("📚", styles["Title"])]],
+              colWidths=[6.5*inch],
+              style=TableStyle([("BACKGROUND", (0,0), (-1,-1), BRAND_YELLOW),
+                                ("ALIGN",      (0,0), (-1,-1), "CENTER"),
+                                ("TOPPADDING", (0,0), (-1,-1), 18),
+                                ("BOTTOMPADDING", (0,0), (-1,-1), 18)])),
+        Spacer(1, 0.3*inch),
+        Paragraph(title, cover_title),
+        Spacer(1, 0.15*inch),
+        Paragraph(f"{question_count} Big Questions, Simply Explained", cover_sub),
+        Spacer(1, 0.4*inch),
+        HRFlowable(width="80%", thickness=2, color=BRAND_BLUE, spaceAfter=20),
+        Paragraph("Deep answers for curious minds — written so simply, even a 10-year-old will get it!", cover_sub),
+        PageBreak(),
+    ]
+```
+
+### Table of Contents page
+
+```python
+def toc_page(questions):
+    story = [Paragraph("📋 Table of Contents", styles["Heading1"]), Spacer(1, 0.2*inch)]
+    for i, q in enumerate(questions, 1):
+        story.append(Paragraph(f"Chapter {i} &nbsp;&nbsp; {q}", toc_entry))
+    story.append(PageBreak())
+    return story
+```
+
+### Chapter page (one per question)
+
+```python
+from reportlab.platypus import KeepTogether
+
+def chapter_page(n, data, img_paths):
+    story = []
+
+    # Chapter header band
+    header_table = Table(
+        [[Paragraph(f"Chapter {n}", chap_number),
+          Paragraph(data["question"], chap_question)]],
+        colWidths=[1*inch, 5.5*inch],
+        style=TableStyle([
+            ("BACKGROUND", (0,0), (-1,-1), BRAND_BG),
+            ("TOPPADDING", (0,0), (-1,-1), 12),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 12),
+            ("LEFTPADDING", (0,0), (0,-1), 12),
+            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+        ])
+    )
+    story.append(header_table)
+    story.append(Spacer(1, 0.15*inch))
+
+    # First image (if available) — float right via 2-col table
+    if img_paths:
+        try:
+            img = Image(img_paths[0], width=2.4*inch, height=1.8*inch)
+            img.hAlign = "RIGHT"
+            text_col = [
+                Paragraph("🟢 The Simple Answer", section_head),
+                Paragraph(data["simple_answer"], body_text),
+            ]
+            layout = Table([[text_col, img]],
+                           colWidths=[3.8*inch, 2.7*inch],
+                           style=TableStyle([("VALIGN", (0,0), (-1,-1), "TOP"),
+                                             ("LEFTPADDING", (1,0), (1,-1), 10)]))
+            story.append(layout)
+        except Exception:
+            story.append(Paragraph("🟢 The Simple Answer", section_head))
+            story.append(Paragraph(data["simple_answer"], body_text))
+    else:
+        story.append(Paragraph("🟢 The Simple Answer", section_head))
+        story.append(Paragraph(data["simple_answer"], body_text))
+
+    # Deep dive
+    story.append(Paragraph("🔵 Let's Go Deeper", section_head))
+    story.append(Paragraph(data["deep_dive"], body_text))
+
+    # Real-world example
+    if data.get("example"):
+        story.append(Paragraph("🌍 Real-World Example", section_head))
+        story.append(Paragraph(data["example"], body_text))
+
+    # Second image (if available)
+    if len(img_paths) > 1:
+        try:
+            img2 = Image(img_paths[1], width=4*inch, height=2.5*inch)
+            img2.hAlign = "CENTER"
+            story.append(Spacer(1, 0.1*inch))
+            story.append(img2)
+        except Exception:
+            pass
+
+    # Fun fact box
+    if data.get("fun_fact"):
+        fact_table = Table(
+            [[Paragraph(f"⭐ <b>Fun Fact:</b> {data['fun_fact']}", fun_fact_box)]],
+            colWidths=[6.5*inch],
+            style=TableStyle([("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#EDE9FE")),
+                              ("ROUNDEDCORNERS", (0,0), (-1,-1), [6,6,6,6]),
+                              ("TOPPADDING", (0,0), (-1,-1), 10),
+                              ("BOTTOMPADDING", (0,0), (-1,-1), 10),
+                              ("LEFTPADDING", (0,0), (-1,-1), 12)])
+        )
+        story.append(fact_table)
+
+    story.append(PageBreak())
+    return story
+```
+
+### Glossary page
+
+```python
+def glossary_page(all_terms):
+    # Deduplicate by word (case-insensitive)
+    seen, unique = set(), []
+    for t in all_terms:
+        key = t["word"].lower()
+        if key not in seen:
+            seen.add(key)
+            unique.append(t)
+    unique.sort(key=lambda x: x["word"].lower())
+
+    story = [Paragraph("📖 Glossary", styles["Heading1"]), Spacer(1, 0.2*inch)]
+    for t in unique:
+        story.append(Paragraph(t["word"], glossary_term))
+        story.append(Paragraph(t["definition"], glossary_def))
+    return story
+```
+
+### Page numbers footer
+
+```python
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas as rl_canvas
+
+class NumberedCanvas(rl_canvas.Canvas):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._saved_page_states = []
+
+    def showPage(self):
+        self._saved_page_states.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        num_pages = len(self._saved_page_states)
+        for state in self._saved_page_states:
+            self.__dict__.update(state)
+            self.draw_page_number(num_pages)
+            super().showPage()
+        super().save()
+
+    def draw_page_number(self, page_count):
+        page = self._pageNumber
+        if page <= 2:   # skip cover + TOC
+            return
+        self.setFont("Helvetica", 9)
+        self.setFillColor(colors.gray)
+        self.drawCentredString(letter[0]/2, 0.4*inch, f"— {page} —")
+```
+
+### Assemble and build
+
+```python
+from reportlab.platypus import SimpleDocTemplate
+from reportlab.lib.pagesizes import letter
+
+def build_pdf(output_path, book_title, questions_data, images_map):
+    doc = SimpleDocTemplate(
+        output_path,
+        pagesize=letter,
+        leftMargin=0.85*inch,
+        rightMargin=0.85*inch,
+        topMargin=0.9*inch,
+        bottomMargin=0.9*inch,
+        title=book_title,
+        author="Claude AI",
+    )
+
+    story = []
+    story += cover_page(book_title, len(questions_data))
+    story += toc_page([d["question"] for d in questions_data])
+
+    all_glossary = []
+    for i, data in enumerate(questions_data, 1):
+        imgs = images_map.get(i, [])
+        story += chapter_page(i, data, imgs)
+        all_glossary += data.get("glossary_terms", [])
+
+    story += glossary_page(all_glossary)
+
+    doc.build(story, canvasmaker=NumberedCanvas)
+```
+
+---
+
+## Step 5 — Download Images
+
+```python
+import requests, os
+from pathlib import Path
+
+def download_image(url, path):
+    try:
+        r = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+        if r.status_code == 200 and "image" in r.headers.get("Content-Type", ""):
+            Path(path).parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "wb") as f:
+                f.write(r.content)
+            return path
+    except Exception:
+        pass
+    return None
+```
+
+---
+
+## Step 6 — Putting It All Together (Full Script Template)
+
+```python
+#!/usr/bin/env python3
+"""
+question-to-book-pdf — generated by Claude
+Usage: python build_book.py <questions_file> [output.pdf]
+"""
+import sys, os, json, requests
+from pathlib import Path
+
+# --- Config ---
+QUESTIONS_FILE = sys.argv[1] if len(sys.argv) > 1 else "questions.txt"
+OUTPUT_PDF     = sys.argv[2] if len(sys.argv) > 2 else "/mnt/user-data/outputs/answer_book.pdf"
+BOOK_TITLE     = "The Big Answer Book"
+IMG_DIR        = "/tmp/book_images"
+os.makedirs(IMG_DIR, exist_ok=True)
+
+# 1. Parse questions
+lines = Path(QUESTIONS_FILE).read_text(encoding="utf-8").splitlines()
+questions = [l.strip().lstrip("0123456789.-) ").strip()
+             for l in lines if l.strip() and not l.strip().startswith("#")]
+
+# 2. Research + write chapter data  (Claude does this inline — see RESEARCH.md)
+# questions_data = [{"question": ..., "simple_answer": ..., ...}, ...]
+
+# 3. Fetch images
+# images_map = {1: ["/tmp/book_images/q1_img0.jpg"], 2: [...], ...}
+
+# 4. Build PDF
+# build_pdf(OUTPUT_PDF, BOOK_TITLE, questions_data, images_map)
+print(f"✅ PDF saved to {OUTPUT_PDF}")
+```
+
+The actual research and image fetching happen in real time during execution — Claude fills in `questions_data` and `images_map` dynamically via web_search and image_search tool calls before calling `build_pdf`.
+
+---
+
+## Important Notes
+
+- **Images**: Use `image_search` tool; download URLs with `requests`; embed via `reportlab.platypus.Image`. If an image fails, skip gracefully — never crash.
+- **Child-friendly language**: Always rewrite technical content. Avoid jargon; add analogies.
+- **Long question lists**: For >10 questions, warn the user it will take a few minutes.
+- **No internet images**: If image download fails, proceed without image for that question.
+- **Output path**: Always save final PDF to `/mnt/user-data/outputs/`.
+- **Fonts**: Stick to Helvetica / Helvetica-Bold (always available in ReportLab). Do NOT use Unicode subscripts/superscripts in canvas text — use `<sub>`/`<super>` tags inside `Paragraph` only.
+- **Book title**: Derive from the input filename or use a generic title if unclear. Ask user if you want a custom title.
