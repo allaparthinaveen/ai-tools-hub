@@ -1,0 +1,55 @@
+You are an expert full-stack developer specializing in Java, Spring Boot, and modern semantic HTML/CSS/JS. 
+
+Generate a complete, fully functional monolithic web application for a "Tech Stack & Cloud Infrastructure Knowledge Base" based on the specification below. Provide the complete code for all backend classes, HTML templates, CSS styles, and JavaScript interactions. Do not use placeholders or omit code.
+
+### 1. Technology Stack
+- Backend: Java 17+, Spring Boot 3.x, Spring Data JPA, H2 Database (In-Memory).
+- Frontend: Plain Semantic HTML5, Vanilla CSS3 (Modern layout paradigms: Flexbox, CSS Grid, Custom Properties), and Native Vanilla JavaScript (ES6+).
+- Template Engine: Thymeleaf (standard Spring Boot integration).
+
+### 2. Domain / Data Model
+Create a `KnowledgeAsset` entity with the following fields:
+- id (Long, Auto-generated)
+- title (String)
+- content (String, Markdown/Text)
+- appFlavour (Enum: CMS_TEAMSITE, BATCH_JOB, MICROSERVICE, AWS_CLOUD)
+- runtime (String - e.g., "Docker", "Java 21", "Node.js")
+- environments (String - Comma-separated or Set: e.g., "AWS Prod, AWS Staging")
+- awsServices (String - Comma-separated or Set: e.g., "S3, Lambda, ECS")
+- repoUrl (String)
+- awsConsoleUrl (String)
+- pipelineUrl (String)
+- updatedAt (LocalDateTime)
+
+### 3. Backend Architecture
+Provide complete code for:
+1. `KnowledgeAsset.java` (JPA Entity with Enums)
+2. `AssetRepository.java` (Spring Data JPA Repository)
+3. `AssetController.java` (Spring MVC Controller handling data display, creation, and full text search routing)
+
+### 4. UI/UX Design System Specification (Vanilla CSS)
+Implement a cohesive "Developer Dark Mode" theme:
+- Colors: Background: #0B0F19 | Cards/Sidebar: #111827 | Borders: #1E293B | Primary Text: #F9FAFB | Accent/Links: #00F2FE (Neon Cyan)
+- Typography: System sans-serif font stack (Inter/Geist-like font feel). Code elements must use a crisp monospace font stack (`Fira Code`, `Courier New`).
+- Layouts: Use full-screen height CSS Grid layouts with sticky sidebars, seamless hover transitions (0.2s ease), and responsive structural padding.
+
+### 5. Frontend Pages Requirements
+
+#### Page 1: Admin Documentation Creator (`admin.html`)
+- A full-screen dashboard workspace splitting the screen into a sidebar config panel and a main workspace.
+- A functional Form that posts back to the controller to save a new `KnowledgeAsset`.
+- Inputs needed: Title text box, App Flavour dropdown, Runtime text box, Checklist groups for Environments and AWS Services.
+- URL metadata inputs for Repo URL, AWS Console, and Pipeline.
+- A clean, monospace textarea for writing documentation notes/code blocks.
+
+#### Page 2: Knowledge Base Display (`index.html`)
+- Split screen: Left sidebar features a dedicated "FLAVOURS" filter list navigation (CMS TeamSite, Microservices, Batch Jobs, AWS Cloud) and an "AWS INFRA" structural resource filter list.
+- Header: Contains a prominent search bar that live-filters displayed cards using JavaScript or hits a search endpoint.
+- Main Body: Displays documentation assets cleanly. Each documentation piece must display its app type pill badge, a clear header, a horizontal row of Dev-Action utility links (Repo, Console, Pipeline), and the documentation content styled neatly inside a code-friendly layout block.
+
+### 6. Interactive JavaScript (`app.js`)
+- Provide client-side logic to handle multi-select dynamic UI elements.
+- Implement a simple frontend search filter mechanism that scans title, text content, or specific tags inside the page instantly hiding non-matching elements.
+- Add a "Copy to Clipboard" behavior to code snippets or URL links if available.
+
+Generate the directory structure first, followed sequentially by the complete contents of each file without placeholders.
