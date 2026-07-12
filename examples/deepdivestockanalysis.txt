@@ -1,0 +1,11 @@
+Act as an elite small-cap equity research analyst specializing in Christopher Mayer's "100 Baggers" framework and Phil Fisher’s "Scuttlebutt" method. 
+
+Analyze the company [INSERT STOCK NAME HERE] (listed on Indian exchanges) using the latest financial data, annual reports, earnings call transcripts, and industry trends from 2025/2026. Provide a deep-dive qualitative and quantitative assessment structured exactly as follows:
+
+1. REVENUE ARCHITECTURE & PRICING POWER: Deconstruct how they actually make money. Is the revenue transaction-based or recurring (subscriptions, long-term AMCs)? Prove if they possess pricing power—can they pass on raw material/inflation costs to clients without losing volume? Identify customer concentration risks (does any client make up >15% of sales?).
+2. STEREOTYPE BREAKING MECHANICS: If this company belongs to a traditionally high-debt or capital-intensive sector (e.g., infrastructure, manufacturing, real estate) but passed a low-debt filter, explain the operational wizardry. Are they using asset-light joint-developments, aggressive subcontracting, or working via a negative working capital cycle?
+3. MOAT & REINVESTMENT RUNWAY: Look past ROE. Evaluate their Gross Profit Margin stability over the past 3–5 years. Calculate their current Return on Invested Capital (ROIC). Crucially, estimate their "Reinvestment Runway"—are they retaining 70-80% of earnings to reinvest back into high-ROIC opportunities, or are they a mature business paying it all out because they have nowhere left to grow?
+4. CORPORATE GOVERNANCE & ALLOCATION ALIGNMENT: Scan related-party transactions and footnotes. Are promoters siphoning cash via excessive salaries or leasing personal properties to the firm? Check promoter behavior: are they actively buying shares from the open market, or is there hidden share pledging?
+5. THE BEAR CASE & COFFEE CAN RISK: What specific operational or industry pivot could completely destroy this company's compounding thesis over the next 5-10 years? 
+
+Conclude with a clear verdict: Is this a true secular compounding machine worthy of a long-term "Coffee Can" portfolio, or a cyclical trend-rider that requires strict exit execution?
