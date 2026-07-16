@@ -1,4 +1,47 @@
-	7.	Confirm to the user in one line what was captured (step name + number of fields + number of requests) and wait for the next checkpoint.
+name: ui-flow-recorder
+description: Record a manual UI walkthrough of a web app (using Playwright MCP) into a functional knowledge base and a Postman-importable API collection. Use this whenever the user wants to document “how a feature/app works” by driving the browser themselves while the agent captures form fields, screen behavior, and the underlying network/API calls at each step. Trigger on requests like “record this flow”, “generate functional documentation for this app”, “capture the API calls while I use the app”, “checkpoint”, or “build me a KB and Postman collection from this session”. Requires the Playwright MCP server (browser_navigate, browser_snapshot, browser_network_requests, browser_network_request tools).
+UI Flow Recorder
+Turns a human-driven walkthrough of a web app into two deliverables:
+	1.	Functional KB (Markdown) — plain-language description of every screen, field, and behavior.
+	2.	API KB (Postman Collection v2.1 JSON) — every network call made, grouped by step, parameterized and importable into Postman.
+The human drives the browser manually (logs in, fills forms, clicks buttons). The agent does NOT act on their behalf — it only observes and records at checkpoints the human calls out.
+Setup (do this once per session)
+	1.	Confirm Playwright MCP is connected with network capability. If not configured with --caps=network, tell the user to reinstall with:
+claude mcp add playwright npx @playwright/mcp@latest -- --caps=network
+	2.	Ask the user for the app name and starting URL (unless already given).
+	3.	Create a working file session-log.json in the working directory (start as {"app": "<name>", "steps": []}). Use assets/session-log-template.json as the shape reference.
+	4.	Call browser_navigate to the given URL. Do not log in or fill anything yourself — tell the user the browser is open and ready for them to proceed manually.
+The recording loop
+The user will act manually and then say something like “checkpoint”, “capture this”, “done with login”, or just describe what they did. On ANY such cue:
+	1.	Ask (once, briefly) for a short step name if not already implied by what they said, e.g. “Login form submission”. Don’t ask more than this one question per checkpoint.
+	2.	Call browser_snapshot — this gives the accessibility tree of the current page. Extract:
+	•	Screen/page title or heading
+	•	Every visible form field: label, role (textbox/combobox/checkbox/etc.), and whether it looked required
+	•	Buttons/links available
+	3.	Call browser_network_requests (use filter to scope to /api/ or similar patterns and avoid noise from static assets — ask the user for the API path pattern once at the start if unsure).
+	4.	For each request that looks meaningful (not images/fonts/analytics), call browser_network_request {number} to get full method, URL, headers, request body, response status, and response body.
+	5.	Sanitize before writing anything to disk: replace values of Authorization, Cookie, Set-Cookie, any field named password, token, secret, apiKey, otp with "<REDACTED>". Never write raw credentials to the log file, even temporarily.
+	6.	Append a step object to session-log.json:
+{
+  "step": "Login form submission",
+  "page": "Login",
+  "fields": [
+    {"label": "Email", "type": "textbox", "required": true},
+    {"label": "Password", "type": "textbox", "required": true}
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "url": "https://app.example.com/api/login",
+      "status": 200,
+      "reqHeaders": {"Content-Type": "application/json"},
+      "reqBody": {"email": "user@example.com", "password": "<REDACTED>"},
+      "resBody": {"userId": 123, "token": "<REDACTED>"}
+    }
+  ]
+}
+
+7.	Confirm to the user in one line what was captured (step name + number of fields + number of requests) and wait for the next checkpoint.
 Keep each checkpoint scoped to what just happened — don’t re-scan the whole app history each time. This matters a lot on smaller models (e.g. Haiku): use the filter param on browser_network_requests aggressively rather than pulling every request since page load.
 Ending the session
 When the user says they’re done (e.g. “that’s it”, “generate the docs”), read the full session-log.json and produce both deliverables.
