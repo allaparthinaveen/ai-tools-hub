@@ -1,0 +1,26 @@
+	7.	Confirm to the user in one line what was captured (step name + number of fields + number of requests) and wait for the next checkpoint.
+Keep each checkpoint scoped to what just happened — don’t re-scan the whole app history each time. This matters a lot on smaller models (e.g. Haiku): use the filter param on browser_network_requests aggressively rather than pulling every request since page load.
+Ending the session
+When the user says they’re done (e.g. “that’s it”, “generate the docs”), read the full session-log.json and produce both deliverables.
+1. Functional KB (Markdown)
+One section per step, in the order recorded:
+	•	## <step name>
+	•	Screen/page name
+	•	Purpose in one sentence (infer from field names/URL if not stated)
+	•	Table of fields: name, type, required
+	•	Short note on what happens on submit (based on the response — success, redirect, validation error, etc.)
+Save as functional-kb.md.
+2. API KB (Postman Collection v2.1)
+Build a valid Postman Collection v2.1 JSON:
+	•	One top-level folder per step (name = step name)
+	•	One request per captured network call inside that folder
+	•	Replace obviously dynamic values (IDs, timestamps, tokens already redacted) with {{variableName}} and add them to a variable array at the collection root with empty/example values
+	•	Add an Authorization entry using {{authToken}} if the app appeared to use bearer/session auth, rather than hardcoding it
+	•	Include info block with collection name = app name
+Save as <app-name>.postman_collection.json. See references/postman-schema.md for the minimal valid structure if unsure.
+Copy both files to /mnt/user-data/outputs/ and present them with present_files.
+Notes / edge cases
+	•	If the user logs into something with SSO/2FA, just let them complete it manually in the visible browser — don’t try to automate it. Only checkpoint after they land on the app’s main screen.
+	•	If a step produces a lot of noisy background requests (analytics, polling), ask the user once for a URL pattern to filter on, and reuse that filter for the rest of the session.
+	•	If the user wants to redo a step, just overwrite that step’s entry in session-log.json (match by step name) rather than appending a duplicate.
+	•	Never fabricate fields or requests that weren’t actually captured — if a snapshot or network pull comes back empty, say so rather than inferring content.
