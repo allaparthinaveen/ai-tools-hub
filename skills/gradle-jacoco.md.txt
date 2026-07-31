@@ -1,0 +1,132 @@
+# Gradle + JaCoCo Reference
+
+## Checking / adding the JaCoCo plugin
+
+Check `build.gradle` / `build.gradle.kts` for the plugin. If absent, add:
+
+```groovy
+// build.gradle (Groovy DSL)
+plugins {
+    id 'jacoco'
+}
+
+jacoco {
+    toolVersion = "0.8.12" // latest stable as of 2026; check for newer patch
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true      // needed for machine-readable parsing
+        html.required = true
+    }
+}
+
+test {
+    finalizedBy jacocoTestReport
+}
+```
+
+```kotlin
+// build.gradle.kts (Kotlin DSL)
+plugins {
+    jacoco
+}
+
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+
+tasks.test {
+    finalizedBy(tasks.jacocoTestReport)
+}
+```
+
+For multi-module projects, apply the plugin in the root `build.gradle` and
+consider the `jacoco-report-aggregation` plugin (Gradle 7.4+) to get one
+merged report across modules instead of per-module reports.
+
+## Enforcing the threshold automatically
+
+Once coverage is climbing, wire in a verification rule so regressions fail
+the build instead of being caught manually later:
+
+```groovy
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.81 // matches the target; adjust as agreed with user
+            }
+        }
+    }
+}
+
+check.dependsOn jacocoTestCoverageVerification
+```
+
+Only add this in Phase 4 (or when the user asks), not in Phase 1 — adding a
+failing gate before the work is done just blocks the build for no reason.
+
+## Commands
+
+```bash
+# Run tests + generate coverage report
+./gradlew test jacocoTestReport
+
+# Run a single test class while iterating on one package
+./gradlew test --tests "com.example.pkg.SomeClassTest"
+
+# Check against the enforced threshold (once configured)
+./gradlew jacocoTestCoverageVerification
+
+# Full build including coverage gate
+./gradlew build
+```
+
+## Parsing the report
+
+Prefer the XML report over scraping HTML — it's stable to parse:
+
+`build/reports/jacoco/test/jacocoTestReport.xml`
+
+Structure (per module):
+
+```xml
+<report>
+  <package name="com/example/service">
+    <counter type="LINE" missed="42" covered="118"/>
+    <counter type="BRANCH" missed="10" covered="30"/>
+    ...
+  </package>
+</report>
+```
+
+Coverage % for a package = `covered / (covered + missed)`. Compute this per
+package for the LINE and BRANCH counters to build the Phase 1 table. Package
+names use `/` instead of `.` — convert back to dotted form for display.
+
+If the project is multi-module, each module has its own
+`build/reports/jacoco/test/jacocoTestReport.xml` — aggregate across modules
+before presenting the package table, and note which module each package
+belongs to if names collide.
+
+## Common gotchas
+
+- **0% packages**: check `build.gradle` for `jacoco { ... }` exclusions, or
+  whether the package is DTOs/generated code (protobuf, MapStruct, Lombok
+  builders) that's legitimately hard/pointless to unit test. Flag these
+  rather than silently trying to hit 81% on generated getters.
+- **Stale report**: if numbers look wrong, force a clean run: `./gradlew
+  clean test jacocoTestReport`.
+- **Lombok/records lowering branch coverage**: equals/hashCode/toString from
+  Lombok or records are usually excluded automatically by newer JaCoCo, but
+  double check the exclude filters if they're inflating missed branches.
