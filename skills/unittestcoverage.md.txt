@@ -1,1 +1,109 @@
-Hi
+---
+name: java-coverage-booster
+description: Systematically audits and raises JaCoCo test coverage on a Java/Gradle (Spring) project, package by package, until it crosses a target threshold (default 81 percent or higher). Use this whenever the user asks to improve, increase, boost, or "fix" test coverage; asks for a package-by-package coverage report or breakdown; wants to use plan mode to stage coverage work into phases; or asks to write unit/integration tests with Mockito, MockMvc, WebTestClient, or JUnit to hit a specific coverage number. Also trigger on phrases like "coverage gaps," "untested packages," "get coverage above X%," or "increase test coverage systematically." This is a multi-phase workflow (audit → plan → execute → verify), not a one-shot task — always run it end to end rather than just writing a few tests.
+---
+
+# Java Test Coverage Booster
+
+A four-phase workflow for taking a Gradle-built Java project from its current
+JaCoCo coverage number to a target threshold (default **81%** line coverage,
+but honor whatever number the user gives), working package by package so
+progress is visible and reviewable at every step.
+
+Read `references/gradle-jacoco.md` before running any coverage commands —
+it has the exact Gradle invocations, JaCoCo config snippets, and report
+parsing steps. Read `references/mocking-patterns.md` before writing any new
+test — it has current (2025/2026-era) Mockito + MockMvc/WebTestClient
+conventions, including what replaced `@MockBean`, partial mocking with
+`@Spy`, `ArgumentCaptor` for asserting on call content, BDD-style Mockito,
+and how to handle strict-stubbing (`UnnecessaryStubbingException`) cleanly
+instead of disabling it.
+
+Never skip straight to writing tests. Always run Phase 1 and Phase 2 first
+and get the plan approved before touching test code.
+
+## Phase 1 — Baseline coverage audit (package by package)
+
+1. Confirm JaCoCo is configured (see reference doc for the plugin block). If
+   missing, add it — don't guess at coverage without a real report.
+2. Run the full test suite with coverage: `./gradlew test jacocoTestReport`
+   (or `./gradlew build` if the project wires jacoco into `check`).
+3. Parse `build/reports/jacoco/test/jacocoTestReport.xml` (not just the HTML —
+   XML is reliable to parse) to get per-package line and branch coverage.
+4. Present a table, **sorted ascending by line coverage** (worst first):
+
+   | Package | Classes | Line Cov % | Branch Cov % | Missed Lines |
+   |---|---|---|---|---|
+
+5. State the overall project coverage and the gap to the target (e.g.
+   "currently 63%, need +18 points to reach 81%").
+6. Flag any package that's suspiciously at 0% — often means it's excluded,
+   untested entirely, or misconfigured, and should be prioritized or called
+   out explicitly.
+
+Do not write any tests yet. This phase is audit-only.
+
+## Phase 2 — Enter plan mode and draft a phased plan
+
+If running inside Claude Code, actually invoke plan mode for this stage
+(the user can toggle it, or you can note explicitly "this is a plan — no
+files will be changed yet" if plan mode isn't available in the current
+environment). Either way, produce a written, reviewable plan before writing
+code.
+
+Group the low-coverage packages from Phase 1 into phases using this logic:
+
+- **Phase A**: highest-impact, lowest-effort packages — large package,
+  low coverage, mostly plain business logic (easy Mockito unit tests).
+- **Phase B**: packages needing MockMvc/WebTestClient (controllers,
+  REST layers) or heavier mocking (external clients, async code).
+- **Phase C**: branch-coverage cleanup — packages with OK line coverage but
+  weak branch coverage (missing edge cases, exception paths).
+- **Phase D**: remaining stragglers + final push to clear the threshold with
+  margin (aim ~2-3 points above target, not exactly at it).
+
+For each phase, specify:
+- Target packages/classes
+- Current → target coverage for that phase
+- Rough test count estimate
+- Mocking approach to use (point to the specific pattern in
+  `references/mocking-patterns.md`)
+- Any risks (e.g. legacy code with hidden statics, no DI seam yet)
+
+Present this plan and get explicit user go-ahead before executing. Do not
+silently proceed into Phase 3.
+
+## Phase 3 — Execute phase by phase
+
+Work through the approved phases **in order**, one at a time:
+
+1. For the current phase's packages, identify specific untested
+   classes/methods from the JaCoCo report (the "Missed Lines" column, or
+   the HTML report's red/yellow highlighting for exact branches).
+2. Write tests using the conventions in `references/mocking-patterns.md`
+   — real behavioral assertions, not tests that merely execute code to
+   inflate the number. A coverage-only test with no meaningful assertion is
+   worse than no test; call this out if you're tempted to write one.
+3. Run just the affected tests first, then the full suite +
+   `jacocoTestReport` to confirm the number actually moved.
+4. Show the updated per-package table with a delta column after each phase,
+   and confirm the phase's target was hit before moving to the next phase.
+5. If a phase reveals the code isn't testable as-is (e.g. `new` calls buried
+   inside methods, static singletons, no seams for mocks), say so and
+   propose the smallest refactor needed (extract a constructor param,
+   introduce an interface) rather than skipping coverage on that class.
+
+Keep phases as discrete, reviewable chunks — don't silently batch all
+phases into one giant diff.
+
+## Phase 4 — Verify and report
+
+1. Run the full suite + `jacocoTestReportVerification` (or
+   `jacocoTestReport` + manual check) one final time.
+2. Present the final package-by-package table next to the Phase 1 baseline
+   so the improvement is visible at a glance.
+3. Confirm overall coverage clears the target (with the small margin from
+   Phase 2D), and call out any package still below target with a reason
+   (e.g. "excluded generated code," "flagged for follow-up").
+4. Summarize what was added: number of test files/classes, key libraries
+   used, any production-code seams introduced for testability.
