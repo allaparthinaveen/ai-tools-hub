@@ -1,0 +1,312 @@
+# Mockito / MockMvc / Testing Patterns Reference
+
+Use this to pick the right pattern per class type. Always assert real
+behavior (return values, thrown exceptions, interaction verification) — not
+just "no exception was thrown."
+
+## 1. Plain business logic / service classes → Mockito unit tests
+
+Baseline for most Phase A work. JUnit 5 + Mockito, constructor injection.
+
+```java
+@ExtendWith(MockitoExtension.class)
+class OrderServiceTest {
+
+    @Mock
+    private PaymentClient paymentClient;
+
+    @Mock
+    private OrderRepository orderRepository;
+
+    @InjectMocks
+    private OrderService orderService;
+
+    @Test
+    void chargesCustomerAndSavesOrderOnSuccess() {
+        when(paymentClient.charge(any())).thenReturn(PaymentResult.success());
+
+        Order result = orderService.placeOrder(new OrderRequest(...));
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+        verify(orderRepository).save(argThat(o -> o.getStatus() == OrderStatus.CONFIRMED));
+    }
+
+    @Test
+    void marksOrderFailedWhenPaymentDeclined() {
+        when(paymentClient.charge(any())).thenReturn(PaymentResult.declined("insufficient_funds"));
+
+        Order result = orderService.placeOrder(new OrderRequest(...));
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.PAYMENT_FAILED);
+    }
+}
+```
+
+Use `@ParameterizedTest` + `@ValueSource`/`@CsvSource`/`@MethodSource` to
+cover multiple edge cases (nulls, boundary values, exception branches)
+without duplicating test bodies — this is the fastest way to lift *branch*
+coverage in Phase C.
+
+```java
+@ParameterizedTest
+@ValueSource(strings = {"", " ", "\t"})
+void rejectsBlankCustomerId(String blankId) {
+    assertThrows(IllegalArgumentException.class, () -> orderService.placeOrder(
+        new OrderRequest(blankId, ...)));
+}
+```
+
+## 2. REST controllers → MockMvc (or WebTestClient for WebFlux)
+
+**Important 2024/2025+ change**: `@MockBean` on Spring Boot 3.4+ is
+deprecated in favor of `@MockitoBean` (`org.springframework.test.context.bean.override.mockito.MockitoBean`).
+Use `@MockitoBean` for new tests; only keep `@MockBean` if the project is
+pinned to an older Boot version — check the project's Spring Boot version
+in `build.gradle` first.
+
+```java
+@WebMvcTest(OrderController.class)
+class OrderControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockitoBean // use @MockBean instead if Spring Boot < 3.4
+    private OrderService orderService;
+
+    @Test
+    void returns200WithOrderBodyOnSuccess() throws Exception {
+        when(orderService.placeOrder(any())).thenReturn(sampleConfirmedOrder());
+
+        mockMvc.perform(post("/orders")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"customerId":"cust-1","items":[{"sku":"A","qty":1}]}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("CONFIRMED"));
+    }
+
+    @Test
+    void returns422WhenValidationFails() throws Exception {
+        mockMvc.perform(post("/orders")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isUnprocessableEntity());
+    }
+}
+```
+
+Use `@WebMvcTest` (slice test) rather than `@SpringBootTest` wherever
+possible — it's faster and keeps the mocking surface to just the
+controller's direct dependencies, which is exactly what's needed to lift
+controller-package coverage without dragging in the whole context.
+
+For reactive/WebFlux controllers, swap MockMvc for `WebTestClient` with the
+same slice-test philosophy (`@WebFluxTest`).
+
+## 3. External HTTP clients → WireMock (preferred over hand-rolled mocks)
+
+For classes that call out over HTTP (Feign clients, `RestClient`,
+`WebClient`), prefer a real stub server over mocking the HTTP client
+internals — it exercises serialization/deserialization too, which plain
+Mockito can't.
+
+```java
+@RegisterExtension
+static WireMockExtension wireMock = WireMockExtension.newInstance()
+    .options(wireMockConfig().dynamicPort())
+    .build();
+
+@Test
+void parsesUpstreamResponseCorrectly() {
+    wireMock.stubFor(get(urlEqualTo("/inventory/A"))
+        .willReturn(okJson("""{"sku":"A","available":5}""")));
+
+    InventoryStatus status = inventoryClient.check("A");
+
+    assertThat(status.available()).isEqualTo(5);
+}
+```
+
+## 4. Repositories / DB-touching code → Testcontainers over H2
+
+If the project already has any integration test setup, prefer
+Testcontainers with the real DB engine (Postgres, MySQL) over an in-memory
+H2 substitute — H2 dialect differences are a common source of tests that
+pass but don't reflect production behavior. Only reach for H2 if
+Testcontainers/Docker isn't available in the environment.
+
+```java
+@Testcontainers
+@SpringBootTest
+class OrderRepositoryIT {
+
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16");
+
+    @DynamicPropertySource
+    static void props(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+    }
+
+    @Autowired
+    private OrderRepository orderRepository;
+
+    @Test
+    void findsOrdersByCustomerId() {
+        orderRepository.save(new Order("cust-1", ...));
+        assertThat(orderRepository.findByCustomerId("cust-1")).hasSize(1);
+    }
+}
+```
+
+These are slower — reserve for repository/persistence packages specifically,
+not as the default for every class.
+
+## 5. Static methods / legacy singletons → Mockito inline mock-maker
+
+Modern Mockito (5.x) supports mocking static methods natively via
+`mockStatic`, without PowerMock:
+
+```java
+try (MockedStatic<ConfigLoader> mocked = mockStatic(ConfigLoader.class)) {
+    mocked.when(ConfigLoader::getRegion).thenReturn("us-east-1");
+
+    String result = myService.resolveEndpoint();
+
+    assertThat(result).contains("us-east-1");
+}
+```
+
+If the project's Mockito version predates inline mock-maker by default,
+check for `mockito-inline` on the classpath, or note it as a dependency to
+add (Mockito 5+ ships inline as default, so this is mostly a concern for
+projects pinned to Mockito 3.x/4.x).
+
+Treat heavy reliance on static mocking as a signal, not just a fix — if a
+class needs 4+ `mockStatic` calls to test, flag it in the Phase 3 write-up
+as a candidate for a small refactor (inject a wrapper/interface) rather than
+piling on more static mocks.
+
+## 6. Async / scheduled / event-driven code
+
+- `@Async` methods: test the synchronous logic directly by calling the
+  method on the bean under test (bypass the proxy) for unit coverage, and
+  reserve a slice/integration test for the actual async wiring.
+- `ApplicationEventPublisher`: mock the publisher and verify the right event
+  type/payload was published, rather than trying to catch the event
+  asynchronously.
+- Scheduled (`@Scheduled`) methods: test the method body directly like any
+  other method; don't try to test the cron trigger itself.
+
+## 7. Partial mocking with `@Spy` / `spy()`
+
+Use a spy when you want **real behavior on most methods** but need to
+override one or two — common with legacy classes that have one hard-to-test
+call (e.g. a method that hits the network) buried inside otherwise-testable
+logic, or when refactoring for a clean seam isn't worth it yet.
+
+```java
+@ExtendWith(MockitoExtension.class)
+class ReportGeneratorTest {
+
+    @Spy
+    private ReportGenerator reportGenerator; // real object, real methods by default
+
+    @Test
+    void reusesRealFormattingButStubsSlowFetch() {
+        // Override just the one expensive/external method
+        doReturn(sampleRawData()).when(reportGenerator).fetchRawDataFromLegacySystem();
+
+        Report report = reportGenerator.generate(); // real formatting logic runs
+
+        assertThat(report.getSummary()).contains("Total: 42");
+    }
+}
+```
+
+**Rules of thumb for spies:**
+- Always use `doReturn(...).when(spy).method()`, **not**
+  `when(spy.method()).thenReturn(...)` — the latter actually invokes the
+  real method first (can throw, hit a real DB/API, etc.) before Mockito
+  intercepts it.
+- Treat heavy spy usage the same as heavy static mocking — a signal that the
+  class deserves a proper seam (extract the slow/external call into an
+  injectable collaborator), not a permanent pattern. Fine for lifting
+  coverage now; worth flagging as follow-up refactor work.
+- Prefer a plain `@Mock` whenever you don't need any real behavior — reach
+  for `@Spy` only when partial real behavior is actually required.
+
+## 8. `ArgumentCaptor` — asserting on what was actually passed
+
+Use this whenever the *content* of what's passed to a collaborator matters,
+not just that it was called. This is one of the highest-value patterns for
+turning a coverage-only test into a real behavioral one.
+
+```java
+@Test
+void publishesEventWithCorrectOrderId() {
+    orderService.placeOrder(new OrderRequest("cust-1", ...));
+
+    ArgumentCaptor<OrderConfirmedEvent> captor = ArgumentCaptor.forClass(OrderConfirmedEvent.class);
+    verify(eventPublisher).publishEvent(captor.capture());
+
+    assertThat(captor.getValue().getCustomerId()).isEqualTo("cust-1");
+    assertThat(captor.getValue().getOrderId()).isNotNull();
+}
+```
+
+For multiple invocations, use `captor.getAllValues()` (a `List<T>`) instead
+of `getValue()` (which only returns the last one).
+
+## 9. BDD-style Mockito (`given/willReturn/then`)
+
+Functionally identical to `when/thenReturn` — purely a readability
+convention some teams standardize on for given-when-then structure. Use it
+if the rest of the project already does; don't mix styles within one file.
+
+```java
+@Test
+void bddStyleExample() {
+    given(paymentClient.charge(any())).willReturn(PaymentResult.success());
+
+    Order result = orderService.placeOrder(sampleRequest());
+
+    then(orderRepository).should().save(any(Order.class));
+    assertThat(result.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+}
+```
+
+## 10. Mockito strictness and `UnnecessaryStubbingException`
+
+`MockitoExtension` defaults to **strict stubbing** — any `when(...)` stub
+that's never actually invoked by the test fails the build with
+`UnnecessaryStubbingException`. This is a feature (it catches copy-pasted
+stale stubs) but shows up often when writing many tests quickly:
+
+- **Fix the real cause first**: usually the stub is stale (left over from a
+  copy-pasted test) or the code path changed — delete the unused stub.
+- If a shared `@BeforeEach` setup legitimately stubs things not every test
+  in the class uses, mark just that test/class as lenient rather than
+  disabling strictness project-wide:
+  ```java
+  @Test
+  @MockitoSettings(strictness = Strictness.LENIENT)
+  void thisOneTestNeedsLooserStubbing() { ... }
+  ```
+  or inline: `lenient().when(mock.method()).thenReturn(x);`
+- Don't reach for `Strictness.LENIENT` at the class or `@ExtendWith`
+  level as a default to silence errors — that defeats the safety net for
+  the whole test class and tends to hide real bugs later.
+
+## General rules that keep coverage gains real
+
+- Every new test needs at least one meaningful assertion tied to behavior
+  (return value, thrown exception, or a `verify()` on a collaborator) — not
+  just "call the method so the line is marked covered."
+- Prefer one focused test per branch/edge case over one giant test with
+  many assertions — this also directly improves branch coverage, which
+  line-only tests often miss.
+- Don't mock what you don't own if you can avoid it (e.g. don't mock a
+  `Map` or `List`) — use real instances for simple value types.
