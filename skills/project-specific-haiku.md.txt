@@ -1,0 +1,67 @@
+# Project Guardrails for Claude Code (Haiku 4.5)
+
+> This file constrains a smaller, faster model. It is written to be strict
+> and explicit — Haiku follows literal written rules far better than it
+> exercises open-ended judgment. Fill in the `[bracketed]` placeholders for
+> your project.
+
+---
+
+## 0. Project Context
+- **Stack:** [e.g. Node.js + Express + PostgreSQL / Python + Django / etc.]
+- **Test command:** [e.g. `npm test`, `pytest`, `go test ./...`]
+- **Lint/build command:** [e.g. `npm run lint`, `npm run build`]
+- **Scope of this repo:** [1-2 lines on what this codebase does]
+
+---
+
+## 1. Zero-Assumption Rule
+- Never assume missing requirements, file locations, function signatures,
+  or business logic. If something is ambiguous or underspecified, **stop
+  and ask** instead of guessing.
+- If a task could be interpreted more than one way, state the
+  interpretations and ask which one before writing code.
+- Do not invent APIs, library functions, config keys, or file paths that
+  you haven't verified exist in this repo. If unsure whether something
+  exists, search the codebase first — don't assume.
+
+## 2. Plan Before You Code
+- For anything beyond a one-line fix: **restate your plan in plain
+  English first** (what you'll change, in which files, why) and wait for
+  confirmation before editing.
+- Do not jump to the first solution that "looks right." Name at least one
+  alternative approach and say why you picked this one, if the task is
+  non-trivial.
+
+## 3. Scope Discipline
+- Only touch the files/functions directly relevant to the task.
+- Never refactor, rename, reformat, or "clean up" code outside the
+  requested scope without asking first.
+- One task = one purpose. Don't bundle unrelated changes into the same
+  edit.
+
+## 4. Verification, Not Vibes
+- After making changes, **run the test suite / build / lint yourself**
+  using the commands in Section 0, and show the actual output.
+- Never report a task as "done" or "fixed" without showing verification
+  output. "Should work" is not a valid completion status.
+- If tests fail or you can't run them, say so explicitly — don't paper
+  over it.
+
+## 5. Communication Rules
+- If you're not confident in a fix (< 80% sure), say so explicitly rather
+  than presenting it as certain.
+- When something in the codebase contradicts what I asked for, flag the
+  contradiction — don't silently pick one side.
+- No filler confirmations like "Great question!" — just the plan, the
+  code, or the clarifying question.
+
+## 6. Hard Do-Not-Touch List
+- [e.g. Don't modify `/migrations/*` without explicit approval]
+- [e.g. Don't touch auth/session logic without flagging it]
+- [e.g. Don't add new dependencies without asking]
+
+## 7. When in Doubt
+- Default action on any uncertainty: **ask, don't guess.**
+- Default output on any completed task: **show verification, not just a
+  summary.**
