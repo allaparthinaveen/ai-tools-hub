@@ -1,0 +1,290 @@
+---
+name: spring-dependency-analyzer
+description: Analyzes all Maven/Gradle dependencies in a Spring Boot project and identifies unused or unnecessary dependencies with actionable recommendations.
+version: 1.0.0
+author: Your Name
+---
+
+# Spring Boot Dependency Analyzer Skill
+
+## Purpose
+This skill systematically analyzes every dependency in a Spring Boot project to identify which are actually being used, which are unnecessary, and which can be safely removed.
+
+## When to Use
+- When a project has accumulated many dependencies over time
+- Before major version upgrades
+- To reduce build time and deployment size
+- To minimize security vulnerabilities by removing unused libraries
+
+## Prerequisites
+- Access to the project root directory
+- Build file present (`pom.xml` for Maven or `build.gradle` for Gradle)
+- Basic understanding of the project's functionality
+
+---
+
+## Analysis Workflow
+
+### Step 1: Identify All Dependencies
+
+**For Maven:**
+```
+mvn dependency:tree > dependency-tree.txt
+```
+
+**For Gradle:**
+```
+gradle dependencies > dependency-tree.txt
+```
+
+Parse the build file and create a complete list of:
+- Direct dependencies (explicitly declared)
+- Transitive dependencies (included indirectly)
+- Scope information (compile, runtime, test, provided, etc.)
+
+### Step 2: Scan Codebase for Usage
+
+For each dependency, search for these usage patterns:
+
+**Java Imports:**
+```
+grep -r "import org.apache.commons" src/main/java/
+```
+
+**Annotations:**
+```
+grep -r "@EnableEurekaClient" src/main/java/
+grep -r "@FeignClient" src/main/java/
+```
+
+**Configuration Classes:**
+- Check `@Configuration` classes for `@Bean` methods using third-party types
+- Check `application.yml` or `application.properties` for library-specific config
+
+**Spring Boot Starters (Special Cases):**
+- `spring-boot-starter-web` → Check for `@RestController`, `@Controller`
+- `spring-boot-starter-data-jpa` → Check for `@Entity`, `@Repository`
+- `spring-boot-starter-security` → Check for `@EnableWebSecurity`
+- `spring-boot-starter-cache` → Check for `@EnableCaching`, `@Cacheable`
+- `spring-boot-starter-actuator` → Check endpoints usage
+
+**Manual Instantiation:**
+```
+grep -r "new.*(" src/main/java/ | grep -E "(ArrayList|HashMap|...)"
+```
+
+### Step 3: Check for Implicit Usage
+
+Some dependencies are used without direct imports:
+
+**Reflection/Spi/ServiceLoader:**
+- Logging frameworks (SLF4J, Logback)
+- JDBC drivers
+- JSON/XML parsers (Jackson, JAXB)
+- Template engines (Thymeleaf, FreeMarker)
+- Validation (Jakarta Validation, Hibernate Validator)
+
+**Runtime-Only Dependencies:**
+- Database drivers (mysql-connector, postgresql)
+- AWS SDK clients (used via configuration, not imports)
+- Message brokers (RabbitMQ, Kafka clients)
+- Cache providers (Redis, Hazelcast)
+
+### Step 4: Check test Scope
+
+Scan `src/test/java/` for:
+- Test frameworks (JUnit, TestNG, Mockito)
+- Assertion libraries (AssertJ, Hamcrest)
+- Testcontainers
+- Spring Boot Test utilities
+
+### Step 5: Generate Usage Matrix
+
+Create a table with:
+
+| Dependency | Declared Scope | Direct Usage | Transitive Usage | Safe to Remove? | Justification |
+|------------|---------------|--------------|------------------|-----------------|---------------|
+| org.springframework.boot:spring-boot-starter-web | compile | Yes (12 controllers) | No | No | Core web layer |
+| commons-io:commons-io | compile | No | Yes (via logging) | Maybe | Used transitively |
+| org.mapstruct:mapstruct | compile | Yes (7 mappers) | No | No | DTO mapping |
+
+### Step 6: Risk Assessment
+
+For each dependency, determine removal risk level:
+
+**LOW RISK (Safe to remove):**
+- No direct imports found
+- No configuration references
+- Not used by any framework
+- Transitive dependency can be excluded
+
+**MEDIUM RISK (Test removal):**
+- Used only in test scope
+- Used only in one feature/module
+- Has conditional usage (e.g., `@ConditionalOnClass`)
+
+**HIGH RISK (Keep):**
+- Core framework dependencies
+- Multiple direct usages
+- Config classes reference it
+- Required by other dependencies
+
+### Step 7: Safe Removal Process
+
+**1. Test removal locally:**
+```
+mvn clean compile test
+# or
+gradle clean build
+```
+
+**2. Check for compile errors:**
+- Missing imports
+- Unknown types
+- Bean creation failures
+
+**3. Run integration tests:**
+```
+mvn verify
+# or
+gradle test
+```
+
+**4. Check Spring Boot auto-configuration logs:**
+```yaml
+logging:
+  level:
+    org.springframework.boot.autoconfigure: DEBUG
+```
+Look for: `ConditionEvaluationReport` - shows why beans were/were not created
+
+**5. Use IDE features:**
+- IntelliJ: Right-click dependency → "Analyze Dependencies"
+- VS Code: Dependency viewer extension
+
+---
+
+## Final Report Structure
+
+Generate a markdown report with:
+
+```markdown
+# Dependency Analysis Report
+
+## Summary
+- Total dependencies: XX
+- Safe to remove: XX
+- Needs investigation: XX
+- Essential: XX
+- Estimated build time reduction: X%
+
+## Safe to Remove
+[List each with reasoning]
+
+## Needs Investigation
+[List each with suggested verification steps]
+
+## Essential
+[List each with justification]
+
+## Recommendations
+1. Remove dependencies: [list]
+2. Exclude transitive dependencies: [list]
+3. Consider alternatives: [list]
+
+## Detailed Analysis
+[Dependency-by-dependency breakdown with usage evidence]
+```
+
+---
+
+## Quick Commands Reference
+
+**Find all uses of a library:**
+```
+mvn dependency:analyze
+```
+IntelliJ: Analyze → Run Inspection by Name → "Unused declaration"
+
+**Check for duplicate classes (classpath conflicts):**
+```
+mvn dependency:tree -Dverbose
+```
+
+**Find unused declared dependencies (Maven only):**
+```
+mvn dependency:analyze
+```
+Look for "Unused declared dependencies" in output
+
+---
+
+## Common False Positives
+
+Dependencies that SEEM unused but aren't:
+
+| Dependency | Why it appears unused | Actual use |
+|------------|----------------------|------------|
+| spring-boot-starter-validation | No @Valid imports | Used via Hibernate/JPA validation |
+| spring-boot-starter-actuator | No endpoint imports | Used via /actuator endpoints |
+| lombok | No imports | Used via annotations at compile time |
+| mapstruct | No interface imports | Used via annotation processing |
+| testcontainers | Only in tests | Critical for integration tests |
+
+---
+
+## Output Format
+
+**Always provide:**
+- Clear "Keep" / "Remove" recommendation for each dependency
+- Evidence of usage (file paths, line numbers)
+- Risk level (Low / Medium / High)
+- Step-by-step removal instructions
+
+**Never:**
+- Recommend removal without verification
+- Ignore transitive dependencies
+- Forget about test-scoped dependencies
+
+---
+
+## Example Analysis Session
+
+**User:** "Analyze all dependencies in my Spring Boot project"
+
+**Skill should respond:**
+
+1. "First, let me see your build file" (Ask for pom.xml or build.gradle)
+2. "Now I'll scan your codebase" (Search for usage patterns)
+3. "Here's your report..." (Show detailed analysis)
+4. "Would you like me to generate the removal commands for the safe-to-remove dependencies?"
+
+---
+
+## Advanced Techniques
+
+**For large monorepos:**
+- Analyze each module separately
+- Look for module-specific dependencies
+- Check for circular dependencies
+
+**For microservices:**
+- Compare dependencies across services
+- Identify common libraries that could be in a parent BOM
+- Check for client-specific dependencies (Feign, RestTemplate)
+
+**For performance critical apps:**
+- Flag heavy dependencies (Guava, Apache Commons)
+- Suggest smaller alternatives
+- Check startup time impact
+
+---
+
+## Caveats & Limitations
+
+This analysis is code-based only. Always:
+1. Run tests after removing any dependency
+2. Deploy to staging environment first
+3. Monitor logs for ClassNotFoundException
+4. Check if dependency is used in external modules/jars
+5. Consider if dependency is needed for runtime features
