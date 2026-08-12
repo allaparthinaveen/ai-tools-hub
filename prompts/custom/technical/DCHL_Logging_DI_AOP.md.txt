@@ -1,0 +1,178 @@
+# ThreadLocal + AOP Mode (default, Spring/Spring Boot projects)
+
+Business methods are **not touched at all**. The call hierarchy is captured by
+an AOP aspect wrapping every method in the target packages, stored in a
+`ThreadLocal`, and flushed in a `finally` block at the controller / advice layer.
+
+## 1. CallLog.java
+
+```java
+package com.example.logging;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+
+public class CallLog {
+
+    private static final int MAX_ENTRIES = 500; // bound: fixes "scalability" con
+
+    private final List<Entry> entries = new ArrayList<>();
+    private final long startNanos = System.nanoTime();
+    private boolean truncated = false;
+
+    public synchronized void addEntry(String className, String methodName) {
+        if (entries.size() >= MAX_ENTRIES) {
+            truncated = true;
+            return;
+        }
+        entries.add(new Entry(className, methodName, System.nanoTime() - startNanos));
+    }
+
+    public synchronized String getCallHierarchy() {
+        StringBuilder sb = new StringBuilder();
+        long lastNanos = 0;
+        for (int i = 0; i < entries.size(); i++) {
+            Entry e = entries.get(i);
+            if (i > 0) sb.append(" -> ");
+            if (i == 0) {
+                sb.append(String.format("%s.%s()", e.className, e.methodName));
+            } else {
+                long deltaMs = (e.elapsedNanos - lastNanos) / 1_000_000;
+                sb.append(String.format("[+%dms] %s.%s()", deltaMs, e.className, e.methodName));
+            }
+            lastNanos = e.elapsedNanos;
+        }
+        if (truncated) sb.append(" -> ...(truncated, cap reached)");
+        long totalMs = (System.nanoTime() - startNanos) / 1_000_000;
+        sb.append(String.format(" [DONE in %dms]", totalMs));
+        return sb.toString();
+    }
+
+    private static class Entry {
+        final String className;
+        final String methodName;
+        final long elapsedNanos;
+        Entry(String className, String methodName, long elapsedNanos) {
+            this.className = className;
+            this.methodName = methodName;
+            this.elapsedNanos = elapsedNanos;
+        }
+    }
+}
+```
+
+Note: `synchronized` is a deliberate, simple safety net — call volume per
+request is small, so contention isn't a real concern. Don't "optimize" this
+into a lock-free structure unless profiling actually shows it matters.
+
+## 2. Context holder (ThreadLocal)
+
+```java
+package com.example.logging;
+
+public class CallLogContext {
+    private static final ThreadLocal<CallLog> HOLDER = new ThreadLocal<>();
+
+    public static CallLog get() {
+        CallLog log = HOLDER.get();
+        if (log == null) {
+            log = new CallLog();
+            HOLDER.set(log);
+        }
+        return log;
+    }
+
+    public static void clear() {
+        HOLDER.remove(); // always call this in the finally block — prevents leaks across pooled threads
+    }
+}
+```
+
+## 3. AOP Aspect — auto-captures every business method
+
+```java
+package com.example.logging;
+
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.Around;
+import org.aspectj.lang.annotation.Aspect;
+import org.springframework.stereotype.Component;
+
+@Aspect
+@Component
+public class CallHierarchyAspect {
+
+    // adjust the pointcut to match your actual business packages
+    @Around("execution(* com.example.service..*(..)) || execution(* com.example.repository..*(..))")
+    public Object trace(ProceedingJoinPoint pjp) throws Throwable {
+        CallLog log = CallLogContext.get();
+        log.addEntry(pjp.getTarget().getClass().getSimpleName(), pjp.getSignature().getName());
+        return pjp.proceed();
+    }
+}
+```
+
+This is what eliminates "Manual Maintenance" from the original cons list —
+developers write zero logging code for anything covered by the pointcut.
+Classes outside the pointcut (static utils, config classes) still need a
+manual `CallLogContext.get().addEntry(...)` call if you want them traced.
+
+## 4. Controller — happy path flush
+
+```java
+@RestController
+public class OrderController {
+
+    @PostMapping("/orders")
+    public ResponseEntity<OrderResponse> placeOrder(@RequestBody OrderRequest req) {
+        CallLog log = CallLogContext.get();
+        log.addEntry("OrderController", "placeOrder()");
+        try {
+            OrderResponse resp = orderService.process(req);
+            return ResponseEntity.ok(resp);
+        } finally {
+            System.out.println("API Flow: " + log.getCallHierarchy());
+            CallLogContext.clear();
+        }
+    }
+}
+```
+
+## 5. @ControllerAdvice — error path flush
+
+```java
+@ControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleAny(Exception ex) {
+        CallLog log = CallLogContext.get();
+        try {
+            logger.error("Request failed", ex); // real error logging, unchanged, goes out immediately
+            System.out.println("API Flow (ERROR): " + log.getCallHierarchy());
+            return ResponseEntity.status(500).body(new ErrorResponse(ex.getMessage()));
+        } finally {
+            CallLogContext.clear();
+        }
+    }
+}
+```
+
+Because both the controller and the advice flush from the same `ThreadLocal`
+via `finally`, the hierarchy is never lost on exception — this is the fix for
+the "Lost on Exceptions" con.
+
+## Handling @Async / parallel streams / CompletableFuture
+
+Plain `ThreadLocal` does **not** propagate to child threads. If you detect any
+of these in the codebase, flag it to the user explicitly rather than silently
+producing a broken trace on async paths. Two options, pick with the user:
+
+- **Simplest**: accept that async branches won't appear in the parent's
+  hierarchy; they get their own separate `CallLog` on their own thread. Fine
+  if async work isn't the part being debugged.
+- **Full propagation**: wrap the executor with a `TaskDecorator` that copies
+  the parent's `CallLog` reference into the child thread's `ThreadLocal`
+  before the task runs. Only do this if the user confirms they need unified
+  traces across async boundaries — it adds real complexity.
