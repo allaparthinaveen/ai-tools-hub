@@ -1,0 +1,127 @@
+# Auto-Generated Entry Content — feeds into LogRow, not real-time logs
+
+This reference covers *what content* to generate (journey ID, step/category/
+action, message, context) for each `LogRow` entry. It does **not** introduce
+a separate logging mechanism — everything described here is written via
+`log.addEntry(...)` / `log.addWarn(...)` / `log.addError(...)` on the same
+`LogRow` object from `references/threadlocal-mode.md` (or the param-passing
+`LogRow` in `references/param-passing-mode.md`), and printed once via
+`flush()`. Nothing here fires an immediate `log.info(...)` call of its own.
+
+## Format (as produced by `LogRow.flush()`)
+
+```
+[JourneyID][Step0:API:Request] Batch trigger request received from user: admin
+[JourneyID][Step1:Auth:Validate] validating JWT token
+[JourneyID][Journey:Complete] API FLOW COMPLETE in 68ms
+```
+
+- `JourneyID`: correlates every entry for one request/job — set once via
+  `LogRowContext.start(journeyId)`.
+- `StepN`: assigned automatically inside `LogRow` (an `AtomicInteger`
+  incremented on every `addEntry`/`addWarn`/`addError` call) — never hardcode
+  a step number yourself, and never pass one in. Because it's runtime-counted,
+  a skipped `if` branch just doesn't consume a number — no confusing gaps.
+- `Category` / `Action`: you choose these when calling `addEntry` — see
+  heuristics below.
+
+## Journey ID detection — deterministic priority order
+
+Scan the entry-point method (controller method, batch job trigger, message
+listener) in this exact order and stop at the first match, then pass it to
+`LogRowContext.start(...)`:
+
+1. Parameter/field literally named (case-insensitive) `batchId`
+2. `requestId`
+3. `traceId`
+4. `refId` / `referenceId`
+5. `userId` / `userName`
+6. None found → generate: `UUID.randomUUID().toString().substring(0, 8)`
+   (this is also `LogRowContext.get()`'s built-in fallback if you forget to
+   call `start()` explicitly)
+
+Don't scan the whole call tree for this — only the entry-point signature and
+its immediate `@RequestParam`/`@PathVariable`/`@RequestBody` fields. Scanning
+deeper risks picking an ID that isn't actually stable for the whole journey
+(e.g. a per-item loop variable).
+
+## Step/category/action content heuristics
+
+When converting a method, add one `LogRow` entry for each of:
+
+- **Method entry** → `addEntry("API", "Request", ...)` (controller) or the
+  class's domain area, action `"Entry"`
+- **Each `if`/`else` branch that represents a decision point** (auth checks,
+  validation, status checks) → category matches the domain (`Auth`,
+  `Validation`, `Status`), action describes what's being checked
+- **Each call to another service/repository** → category = target class's
+  domain, action = the operation (`Query`, `Save`, `Call`) — note the AOP
+  aspect already auto-adds a lightweight entry for these if it's in the
+  pointcut; only add a rich manual entry here if the default class/method
+  entry isn't descriptive enough on its own
+- **`catch` blocks** → always `log.addError(...)`, never `addEntry`/`addWarn`
+  — category matches the domain, include the exception message, and this is
+  *in addition to*, not instead of, the real `logger.error(...)` call for the
+  actual stack trace
+- **Journey completion** (return statement at the entry point, success and
+  failure) → category `"Journey"`, action `"Complete"` or `"Failed"`
+
+Example — full method using `LogRow` directly (no separate context object):
+
+```java
+@PostMapping("/batch/trigger")
+public ResponseEntity<BatchResponse> triggerBatch(@RequestParam String batchId, @RequestParam String user) {
+    LogRowContext.start(batchId); // journey ID resolved per the priority order above
+    LogRow log = LogRowContext.get();
+    try {
+        log.addEntry("API", "Request", "Batch trigger request received from user: {}", user);
+
+        if (!authService.isValid(user)) {
+            log.addWarn("Auth", "Validate", "Invalid user attempted batch trigger");
+            return ResponseEntity.status(403).build();
+        }
+        log.addEntry("Auth", "Validate", "JWT validated");
+
+        BatchResult result = batchService.run(batchId); // AOP aspect auto-adds entries for calls inside here
+        log.addEntry("Batch", "Execute", "Batch completed with status: {}", result.getStatus());
+
+        log.addEntry("Journey", "Complete", "API FLOW COMPLETE");
+        return ResponseEntity.ok(new BatchResponse(result));
+    } catch (Exception ex) {
+        logger.error("Batch trigger failed", ex); // real error logging, fires immediately, unchanged
+        log.addError("Journey", "Failed", "Batch trigger failed", ex);
+        throw ex;
+    } finally {
+        System.out.println(log.flush()); // single deferred print, happy path AND error path land here
+        LogRowContext.clear();
+    }
+}
+```
+
+## Context extraction rules — hard deny-list
+
+Even though these entries are memory-only until `flush()`, `flush()` output
+is meant to be grepped/shipped like a real log line — treat the content rules
+as if it were real-time. **Never auto-extract and log:**
+
+- Tokens, JWTs, API keys, passwords, secrets, session IDs (log "JWT
+  validated", never the token value)
+- Full request/response bodies (log field *names* or counts, e.g. "3 items in
+  payload", not the payload itself)
+- Any field commonly holding PII (email, phone, SSN, card numbers, addresses)
+  unless the user explicitly confirms it's needed and the project's logging
+  policy allows it
+
+Safe to auto-extract: counts, statuses, IDs already treated as non-sensitive
+(batchId, requestId), endpoint URLs, HTTP status codes, enum/state values,
+elapsed time.
+
+## Loop volume control
+
+Don't call `addEntry` once per iteration on a loop that can be large — that's
+exactly the "scalability" problem the 500-entry cap exists to catch, just
+hit sooner. Default to one summary entry after the loop
+(`"Processed 240 items, 3 failed"`), plus per-item entries only via
+`addWarn`/`addError` for actual failures. If the user wants per-item entries
+regardless, that's their call — flag the volume risk once, then follow their
+preference.
